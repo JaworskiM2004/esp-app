@@ -2,7 +2,9 @@
 <html lang="pl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap">
 <title>ESP</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -22,7 +24,8 @@
   --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   color-scheme:dark;
 }
-html,body{height:100%}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+*{touch-action:manipulation}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:16px;line-height:1.45;margin:0;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
@@ -31,11 +34,11 @@ button{cursor:pointer;-webkit-user-select:none;user-select:none}
 :focus-visible{outline:2px solid var(--ink-2);outline-offset:2px}
 svg.i{width:22px;height:22px;stroke:var(--icon);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-.app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
+.app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-sizing:border-box}
 
 /* pasek stanu */
-.status{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:flex-end;gap:18px;height:48px}
+.status{position:relative;margin-top:env(safe-area-inset-top,0px);flex:none;z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:flex-end;gap:18px;height:48px}
 .st{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .st.off svg.i{stroke:#4d4d4d}
 .st svg.i{width:20px;height:20px}
@@ -55,7 +58,7 @@ svg.i{width:22px;height:22px;stroke:var(--icon);fill:none;stroke-width:1.6;strok
 .head h1{font-size:20px;font-weight:620;margin:0}
 .back{width:44px;height:44px;margin-left:-10px;border:0;background:transparent;border-radius:12px;display:inline-flex;align-items:center;justify-content:center}
 
-main{flex:1;padding-block:8px 40px;padding-bottom:max(40px,env(safe-area-inset-bottom,0px))}
+main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-block:8px 40px;padding-bottom:max(40px,env(safe-area-inset-bottom,0px));margin:0 -4px;padding-inline:4px}
 .view{display:flex;flex-direction:column;gap:16px}
 #v-home-screen{will-change:transform}
 /* panele funkcji: wjeżdżają z prawej nad ekran startowy, pasek stanu zostaje na wierzchu */
@@ -66,7 +69,7 @@ main{flex:1;padding-block:8px 40px;padding-bottom:max(40px,env(safe-area-inset-b
 /* ekran startowy */
 .brand{font-size:34px;font-weight:680;letter-spacing:.01em;margin:6px 0 10px}
 /* kafelki: wszystkie kwadratowe, same ikony */
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:calc(50svh - 48px - env(safe-area-inset-top,0px) - 8px)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:calc(50svh - 56px - env(safe-area-inset-top,0px))}
 @media (max-height:560px){.grid{margin-top:24px}}
 .tile{aspect-ratio:1;max-width:100%;border:1px solid var(--line-2);border-radius:30px;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box}
 .tile:active{background:var(--raise);border-color:var(--line-3)}
@@ -76,17 +79,13 @@ main{flex:1;padding-block:8px 40px;padding-bottom:max(40px,env(safe-area-inset-b
 /* okrągły ekran urządzenia (wspólny dla edytora i podglądu) */
 .screen{--d:280px;width:var(--d);height:var(--d);border-radius:50%;overflow-y:auto;overflow-x:hidden;background:#000;position:relative;scrollbar-width:none;overscroll-behavior:contain;flex:none}
 .screen::-webkit-scrollbar{display:none}
-.screen .ph{width:var(--d);height:var(--d);position:relative;overflow:hidden;border-radius:50%;touch-action:pan-y}
-.screen .ph img{position:absolute;left:0;top:0;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none}
-.screen.crop .ph{touch-action:none;cursor:grab}
-.screen .tx{font-size:calc(var(--d) * .058);line-height:1.38;color:#f3f3f3;text-align:center;padding:0 calc(var(--d) * .08) calc(var(--d) * .3);word-break:normal;overflow-wrap:normal;hyphens:none}
-.screen .tx.after{padding-top:calc(var(--d) * .07)}
-/* górna połowa tekstu idzie po okręgu; niżej stała szerokość (dół i tak się przewija) */
-.screen .sh{height:calc(var(--d) / 2);width:calc(var(--d) / 2 - var(--d) * .08)}
-.screen .sh.l{float:left;shape-outside:radial-gradient(circle at 100% 100%,transparent calc(var(--d) * .41),#000 calc(var(--d) * .41 + 1px))}
-.screen .sh.r{float:right;shape-outside:radial-gradient(circle at 0 100%,transparent calc(var(--d) * .41),#000 calc(var(--d) * .41 + 1px))}
-.screen .tx.after .sh{display:none}
-.screen .ph.after{margin-top:calc(var(--d) * .04)}
+/* treść w układzie ekranu ESP (466 px) skalowana do podglądu — te same linie co na urządzeniu */
+.screen .cw{position:relative;width:100%}
+.screen .ci{position:absolute;left:0;top:0;width:466px;transform-origin:0 0}
+.screen .ph{position:absolute;left:0;width:466px;height:466px;overflow:hidden}
+.screen .ph img{position:absolute;left:0;top:0;max-width:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;pointer-events:none}
+.screen .ln{position:absolute;white-space:pre;font:400 30px/41px Inter,-apple-system,system-ui,sans-serif;color:#f3f3f3;font-kerning:none;font-feature-settings:"kern" 0}
+#edScreen{touch-action:none}
 .screen .blank{height:var(--d);display:flex;align-items:center;justify-content:center;color:#5a5a5a;font-size:calc(var(--d) * .05)}
 
 /* edytor wiadomości */
@@ -236,14 +235,8 @@ textarea:focus{border-color:var(--line-3);outline:none}
       </div>
       <div class="tools">
         <label class="tbtn" title="Dodaj zdjęcie"><svg class="i"><use href="#i-image"/></svg><input type="file" id="photoIn" accept="image/*" aria-label="Dodaj zdjęcie"></label>
-        <button class="tbtn" id="cropBtn" type="button" aria-pressed="false" title="Ustaw kadr" disabled><svg class="i"><use href="#i-move"/></svg></button>
         <button class="tbtn" id="orderBtn" type="button" title="Zdjęcie przed / po tekście" disabled><svg class="i"><use href="#i-swap"/></svg></button>
         <button class="tbtn" id="rmPhoto" type="button" title="Usuń zdjęcie" disabled><svg class="i"><use href="#i-trash"/></svg></button>
-      </div>
-      <div class="zoom" id="zoomRow" hidden>
-        <svg class="i"><use href="#i-zoom-s"/></svg>
-        <input type="range" id="zoom" min="1" max="3" step="0.01" value="1" aria-label="Powiększenie zdjęcia">
-        <svg class="i"><use href="#i-zoom-l"/></svg>
       </div>
       <textarea id="msgText" maxlength="2000" placeholder="Napisz wiadomość…"></textarea>
       <button class="send" id="sendBtn" type="button" aria-label="Wyślij na ESP"><svg class="i"><use href="#i-send"/></svg></button>
@@ -471,26 +464,71 @@ textarea:focus{border-color:var(--line-3);outline:none}
   }
   setInterval(renderStatus, 5000);
 
-  /* ===================== treść na okrągłym ekranie ===================== */
-  // m: { text, photo: { url, w, h, x, y, z } | null, order: 'photo-first' | 'text-first' }
+  /* ===================== treść na okrągłym ekranie =====================
+     Układ liczony dokładnie jak w ESP (te same szerokości znaków czcionki Inter 30 px),
+     więc linie łamią się identycznie na telefonie i na urządzeniu. */
+  const DEV = 466, LH = 41, ASC = 30, DESC = 8, TEXT_MAXW = 400;
+  const ADV = {" ": 8, "!": 9, "\"": 14, "#": 19, "$": 19, "%": 29, "&": 19, "'": 9, "(": 11, ")": 11, "*": 15, "+": 20, ",": 9, "-": 14, ".": 9, "/": 11, "0": 19, "1": 12, "2": 18, "3": 19, "4": 19, "5": 18, "6": 19, "7": 17, "8": 19, "9": 19, ":": 9, ";": 9, "<": 20, "=": 20, ">": 20, "?": 15, "@": 29, "A": 21, "B": 20, "C": 22, "D": 22, "E": 18, "F": 18, "G": 22, "H": 22, "I": 8, "J": 17, "K": 20, "L": 17, "M": 27, "N": 23, "O": 23, "P": 19, "Q": 23, "R": 19, "S": 19, "T": 19, "U": 22, "V": 21, "W": 30, "X": 20, "Y": 20, "Z": 19, "[": 11, "\\": 11, "]": 11, "^": 14, "_": 14, "`": 10, "a": 17, "b": 18, "c": 17, "d": 18, "e": 17, "f": 11, "g": 18, "h": 18, "i": 7, "j": 7, "k": 16, "l": 7, "m": 26, "n": 18, "o": 18, "p": 18, "q": 18, "r": 11, "s": 16, "t": 10, "u": 18, "v": 17, "w": 25, "x": 16, "y": 17, "z": 17, "{": 13, "|": 10, "}": 13, "~": 20, "ą": 17, "ć": 17, "ę": 17, "ł": 7, "ń": 18, "ó": 18, "ś": 16, "ź": 17, "ż": 17, "Ą": 21, "Ć": 22, "Ę": 18, "Ł": 18, "Ń": 23, "Ó": 23, "Ś": 19, "Ź": 19, "Ż": 19, "–": 15, "—": 30, "„": 13, "”": 13, "“": 13, "’": 8, "‘": 8, "…": 26, "°": 14, "€": 20, "·": 9, "×": 20, "•": 17, "ä": 17, "ö": 18, "ü": 18, "ß": 18, "é": 17, "è": 17, "á": 17, "à": 17, "í": 7, "ú": 18, "ñ": 18, "ç": 17, "Ä": 21, "Ö": 23, "Ü": 22, "É": 18};
+  const advOf = c => ADV[c] || 0;                                   // brak znaku na ESP (np. emoji) = pomijany
+  const chordAt = y => { const r = DEV / 2 - 26, d = y - DEV / 2; return Math.abs(d) >= r ? 0 : Math.floor(2 * Math.sqrt(r * r - d * d)); };
+  function cps(text) {
+    return Array.from((text || '').replace(/\r/g, '').replace(/\t/g, ' ').replace(/[‘’]/g, "'")).filter(c => c === '\n' || ADV[c] !== undefined);
+  }
+  function layoutText(t, y0, roundTop) {
+    const lines = []; let i = 0, y = y0; const n = t.length, MAXH = DEV * 6;
+    while (i < n && y < MAXH) {
+      if (t[i] === '\n') { y += LH; i++; continue; }
+      let avail = TEXT_MAXW;
+      if (roundTop && y < DEV / 2) avail = Math.min(TEXT_MAXW, chordAt(y + 4));
+      let j = i, w = 0, lastBreak = -1, wAtBreak = 0;
+      while (j < n && t[j] !== '\n') { const cw = advOf(t[j]); if (w + cw > avail) break; w += cw; if (t[j] === ' ') { lastBreak = j; wAtBreak = w - cw; } j++; }
+      let end;
+      if (j >= n || t[j] === '\n') end = j;
+      else if (lastBreak > i) { end = lastBreak; w = wAtBreak; }
+      else if (avail < TEXT_MAXW) { y += Math.floor(LH / 3); continue; }
+      else { end = Math.max(j, i + 1); w = 0; for (let k = i; k < end; k++) w += advOf(t[k]); }
+      let a = i, b = end;
+      while (a < b && t[a] === ' ') { w -= advOf(t[a]); a++; }
+      while (b > a && t[b - 1] === ' ') { w -= advOf(t[b - 1]); b--; }
+      if (b > a) { lines.push({ s: t.slice(a, b).join(''), w, y }); y += LH; }
+      if (end < n && t[end] === '\n') i = end + 1; else { i = end; while (i < n && t[i] === ' ') i++; }
+    }
+    return { lines, yEnd: y };
+  }
+  function layoutMsg(m) {
+    const t = cps(m.text), hasPhoto = !!m.photo, hasText = t.length > 0, photoFirst = m.order !== 'text-first';
+    const yText = hasPhoto && photoFirst ? DEV + 28 : 0;
+    let L = hasText ? layoutText(t, yText, !(hasPhoto && photoFirst)) : { lines: [], yEnd: yText };
+    const yPhoto = photoFirst ? 0 : (hasText ? L.yEnd + 28 : 0);
+    let total = hasPhoto && !photoFirst ? yPhoto + DEV : Math.max(L.yEnd + (hasText ? 140 : 0), DEV);
+    if (hasText && !hasPhoto && L.yEnd < DEV) {
+      const top = L.lines.length ? L.lines[0].y : 0, shift = Math.floor((DEV - (L.yEnd - top)) / 2) - top;
+      if (shift > 0) L = layoutText(t, shift, true);
+      total = DEV;
+    }
+    return { lines: L.lines, yPhoto, total: Math.min(Math.max(total, DEV), DEV * 6) };
+  }
   function renderScreen(el, m, d, opts = {}) {
     el.style.setProperty('--d', d + 'px');
-    if (!m || (!m.text && !m.photo)) { el.innerHTML = '<div class="blank"></div>'; return; }
-    const ph = m.photo ? `<div class="ph${m.order === 'text-first' ? ' after' : ''}" data-ph><img src="${m.photo.url}" alt=""></div>` : '';
-    const txt = m.text ? `<div class="tx${m.photo && m.order === 'photo-first' ? ' after' : ''}"><div class="sh l"></div><div class="sh r"></div>${esc(m.text).replace(/\n/g, '<br>')}</div>` : '';
-    el.innerHTML = m.order === 'text-first' ? txt + ph : ph + txt;
-    if (m.photo) placePhoto(el, m.photo, d);
-    if (!opts.keepScroll) el.scrollTop = 0;
+    if (!m || (!cps(m.text).length && !m.photo)) { el.innerHTML = '<div class="blank"></div>'; return; }
+    const L = layoutMsg(m), k = d / DEV, top = el.scrollTop;
+    const base = Math.floor((LH + ASC - DESC) / 2);   // linia bazowa jak na ESP
+    const ph = m.photo ? `<div class="ph" data-ph style="top:${L.yPhoto}px"><img src="${m.photo.url}" alt=""></div>` : '';
+    // przesunięcie: w CSS linia bazowa wypada ok. 31 px od góry linii 41 px — tak jak na ESP
+    const ln = L.lines.map(l => `<div class="ln" style="top:${l.y + base - 31}px;left:${Math.floor(DEV / 2 - l.w / 2)}px">${esc(l.s)}</div>`).join('');
+    el.innerHTML = `<div class="cw" style="height:${L.total * k}px"><div class="ci" style="height:${L.total}px;transform:scale(${k})">${ph}${ln}</div></div>`;
+    if (m.photo) placePhoto(el, m.photo);
+    el.scrollTop = opts.keepScroll ? top : 0;
   }
   function fit(p, d) {
     const s = Math.max(d / p.w, d / p.h) * p.z, w = p.w * s, h = p.h * s;
     const mx = (w - d) / 2 / d, my = (h - d) / 2 / d;
     p.x = Math.max(-mx, Math.min(mx, p.x)); p.y = Math.max(-my, Math.min(my, p.y));
-    return { w, h, left: d / 2 - w / 2 + p.x * d, top: d / 2 - h / 2 + p.y * d };
+    return { w, h, left: d / 2 - w / 2 + p.x * d, top: d / 2 - h / 2 + p.y * d, mx, my };
   }
-  function placePhoto(el, p, d) {
+  function placePhoto(el, p) {
     const img = el.querySelector('[data-ph] img'); if (!img) return;
-    const f = fit(p, d);
+    const f = fit(p, DEV);
     img.style.width = f.w + 'px'; img.style.height = f.h + 'px';
     img.style.transform = `translate(${f.left}px, ${f.top}px)`;
   }
@@ -515,45 +553,61 @@ textarea:focus{border-color:var(--line-3);outline:none}
   const draft = { text: '', photo: null, order: 'photo-first' };
   const ed = $('edScreen');
   const edSize = () => Math.min(300, Math.round(innerWidth * 0.74));
-  let crop = false, sending = false;
+  let sending = false;
   function renderEditor(keepScroll) {
     draft.text = $('msgText').value.trim();
     renderScreen(ed, draft, edSize(), { keepScroll });
     const has = !!draft.photo;
-    ['cropBtn', 'orderBtn', 'rmPhoto'].forEach(id => $(id).disabled = !has);
-    if (!has && crop) setCrop(false);
-    $('zoomRow').hidden = !crop;
+    ['orderBtn', 'rmPhoto'].forEach(id => $(id).disabled = !has);
     $('sendBtn').disabled = sending || (!draft.text && !draft.photo);
-  }
-  function setCrop(on) {
-    crop = on; $('cropBtn').setAttribute('aria-pressed', on); ed.classList.toggle('crop', on);
-    if (on) { const ph = ed.querySelector('[data-ph]'); if (ph) ed.scrollTop = ph.offsetTop; }
-    renderEditor(true);
   }
   function loadImage(url, cb) { const im = new Image(); im.onload = () => cb(im); im.src = url; }
   $('msgText').addEventListener('input', () => renderEditor(true));
   $('photoIn').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
     const url = URL.createObjectURL(f);
-    loadImage(url, im => { draft.photo = { url, w: im.naturalWidth, h: im.naturalHeight, x: 0, y: 0, z: 1 }; $('zoom').value = 1; renderEditor(); });
+    loadImage(url, im => { draft.photo = { url, w: im.naturalWidth, h: im.naturalHeight, x: 0, y: 0, z: 1 }; renderEditor(); });
     e.target.value = '';
   });
-  $('cropBtn').addEventListener('click', () => setCrop(!crop));
   $('orderBtn').addEventListener('click', () => { draft.order = draft.order === 'photo-first' ? 'text-first' : 'photo-first'; renderEditor(); });
   $('rmPhoto').addEventListener('click', () => { draft.photo = null; renderEditor(); });
-  $('zoom').addEventListener('input', e => { if (!draft.photo) return; draft.photo.z = +e.target.value; placePhoto(ed, draft.photo, edSize()); });
-  let drag = null;
+
+  // gesty w podglądzie: jeden palec na zdjęciu = przesuwanie kadru (gdy kadr dojdzie do brzegu, przewija się podgląd),
+  // jeden palec poza zdjęciem = przewijanie, dwa palce = powiększanie / pomniejszanie
+  const ptrs = new Map(); let g = null;
+  const dist = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
   ed.addEventListener('pointerdown', e => {
-    if (!crop || !draft.photo || !e.target.closest('[data-ph]')) return;
-    drag = { x: e.clientX, y: e.clientY, px: draft.photo.x, py: draft.photo.y }; ed.setPointerCapture(e.pointerId);
+    ed.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const onPhoto = !!(draft.photo && e.target.closest('[data-ph]'));
+    if (ptrs.size === 2 && draft.photo) g = { mode: 'pinch', d0: dist(), z0: draft.photo.z };
+    else if (ptrs.size === 1) g = { mode: onPhoto ? 'pan' : 'scroll' };
   });
   ed.addEventListener('pointermove', e => {
-    if (!drag) return; const d = edSize();
-    draft.photo.x = drag.px + (e.clientX - drag.x) / d; draft.photo.y = drag.py + (e.clientY - drag.y) / d;
-    placePhoto(ed, draft.photo, d);
+    const prev = ptrs.get(e.pointerId); if (!prev || !g) return;
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const d = edSize();
+    if (g.mode === 'pinch' && ptrs.size === 2) {
+      draft.photo.z = Math.max(1, Math.min(4, g.z0 * dist() / g.d0)); placePhoto(ed, draft.photo); return;
+    }
+    if (ptrs.size !== 1) return;
+    if (g.mode === 'pan') {
+      const p = draft.photo, before = p.y;
+      p.x += dx / d; p.y += dy / d;
+      const f = fit(p, DEV);                                   // fit() przycina do brzegów kadru
+      const used = (p.y - before) * d, rest = dy - used;       // ruch, który nie zmieścił się w kadrze → przewijanie
+      placePhoto(ed, p);
+      if (Math.abs(rest) > .5) ed.scrollTop -= rest;
+    } else ed.scrollTop -= dy;
   });
-  ed.addEventListener('pointerup', () => drag = null);
-  ed.addEventListener('pointercancel', () => drag = null);
+  const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size === 0) g = null; else if (ptrs.size === 1 && g && g.mode === 'pinch') g = { mode: 'pan' }; };
+  ed.addEventListener('pointerup', endPtr); ed.addEventListener('pointercancel', endPtr);
+
+  // bez powiększania całej strony (iOS: szczypanie i podwójne stuknięcie)
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+  // podwójne stuknięcie blokuje „touch-action: manipulation” w CSS
 
   $('sendBtn').addEventListener('click', async () => {
     if (sending) return;
@@ -568,7 +622,6 @@ textarea:focus{border-color:var(--line-3);outline:none}
       await db.patch('messages', 'status=in.(sent,shown)', { status: 'cleared' });
       await db.insert('messages', { body: draft.text || null, photo_path, photo_first: draft.order === 'photo-first' });
       toast('Wysłano na ESP');
-      setCrop(false);
       $('msgText').value = ''; draft.photo = null; draft.order = 'photo-first';
       await poll();
     } catch (err) {
@@ -602,7 +655,7 @@ textarea:focus{border-color:var(--line-3);outline:none}
     if (!last) return;
     const v = await viewOf({ ...last, status: 'sent' });
     $('msgText').value = v.text; draft.order = v.order;
-    draft.photo = v.photo ? { ...v.photo } : null; $('zoom').value = 1;
+    draft.photo = v.photo ? { ...v.photo } : null;
     renderEditor(); open && open.scrollTo({ top: 0, behavior: 'smooth' });
   });
   $('clearOn').addEventListener('click', async () => {
