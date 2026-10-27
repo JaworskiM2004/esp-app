@@ -35,7 +35,7 @@ button{cursor:pointer;-webkit-user-select:none;user-select:none}
 :focus-visible{outline:2px solid var(--ink-2);outline-offset:2px}
 svg.i{width:22px;height:22px;stroke:var(--icon);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-.app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;
+.app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;overflow:hidden;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-sizing:border-box}
 
 /* pasek stanu */
@@ -59,12 +59,15 @@ svg.i{width:22px;height:22px;stroke:var(--icon);fill:none;stroke-width:1.6;strok
 .head h1{font-size:20px;font-weight:620;margin:0}
 .back{width:44px;height:44px;margin-left:-10px;border:0;background:transparent;border-radius:12px;display:inline-flex;align-items:center;justify-content:center}
 
-main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-block:8px 40px;padding-bottom:max(40px,env(safe-area-inset-bottom,0px));margin:0 -4px;padding-inline:4px}
+main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-block:8px 40px;padding-bottom:max(40px,env(safe-area-inset-bottom,0px));margin:0 -44px 0 -4px;padding-left:4px;padding-right:44px;overflow-x:hidden}
 .view{display:flex;flex-direction:column;gap:16px}
 #v-home-screen{will-change:transform}
 /* panele funkcji: wjeżdżają z prawej nad ekran startowy, pasek stanu zostaje na wierzchu */
-.panel{position:fixed;left:0;right:0;bottom:0;top:calc(env(safe-area-inset-top,0px) + 58px);z-index:4;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
-  padding-left:max(16px,env(safe-area-inset-left,0px),calc(50vw - 260px));padding-right:max(16px,env(safe-area-inset-right,0px),calc(50vw - 260px));padding-bottom:max(40px,env(safe-area-inset-bottom,0px));box-sizing:border-box;will-change:transform}
+.panel{position:fixed;left:0;right:0;bottom:0;top:calc(env(safe-area-inset-top,0px) + 58px);z-index:4;background:var(--bg);overflow:hidden;will-change:transform}
+/* iOS rysuje pasek przewijania nawet przy ukryciu w CSS — przewijany obszar wystaje 40 px poza prawą krawędź, więc pasek jest poza ekranem */
+.pscroll{position:absolute;top:0;bottom:0;left:0;right:-40px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px),calc(50vw - 260px));padding-right:calc(max(16px,env(safe-area-inset-right,0px),calc(50vw - 260px)) + 40px);padding-bottom:max(40px,env(safe-area-inset-bottom,0px))}
+.pscroll>*{flex-shrink:0}
 .panel.moving{box-shadow:-1px 0 0 var(--line-2)}
 
 /* ekran startowy */
@@ -78,7 +81,7 @@ main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-ove
 
 
 /* okrągły ekran urządzenia (wspólny dla edytora i podglądu) */
-.screen{--d:280px;width:var(--d);height:var(--d);border-radius:50%;overflow-y:auto;overflow-x:hidden;background:#000;position:relative;scrollbar-width:none;overscroll-behavior:contain;flex:none}
+.screen{--d:280px;width:var(--d);height:var(--d);border-radius:50%;overflow:hidden;background:#000;position:relative;scrollbar-width:none;overscroll-behavior:contain;flex:none}
 .screen::-webkit-scrollbar{display:none}
 /* treść w układzie ekranu ESP (466 px) skalowana do podglądu — te same linie co na urządzeniu */
 .screen .cw{position:relative;width:100%}
@@ -109,7 +112,7 @@ main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-ove
 .zoom{display:flex;align-items:center;gap:12px;padding:0 6px}
 .zoom svg.i{width:18px;height:18px}
 input[type=range]{flex:1;accent-color:#cfcfcf}
-textarea{width:100%;box-sizing:border-box;min-height:120px;resize:vertical;border:1px solid var(--line-2);border-radius:18px;background:var(--bg);padding:14px 16px;line-height:1.5}
+textarea{width:100%;box-sizing:border-box;min-height:120px;resize:none;overflow:hidden;border:1px solid var(--line-2);border-radius:18px;background:var(--bg);padding:14px 16px;line-height:1.5}
 textarea::placeholder{color:var(--muted)}
 textarea:focus{border-color:var(--line-3);outline:none}
 .send{height:64px;border-radius:18px;border:0;background:var(--ink);color:#000;font-size:17px;font-weight:620;display:flex;align-items:center;justify-content:center;gap:10px}
@@ -133,10 +136,15 @@ textarea:focus{border-color:var(--line-3);outline:none}
 .device .scr{position:absolute;inset:6.5%;border-radius:50%;overflow:hidden;background:#000}
 .device canvas{display:block;width:100%;height:100%;border-radius:50%;touch-action:none;-webkit-user-select:none;user-select:none}
 /* przyciski boczne — klikalne jak na urządzeniu: górny wygaszacz, dolny menu */
-.device .btns{position:absolute;right:-18px;top:34%;display:flex;flex-direction:column;gap:12%;height:32%;z-index:2}
-.device .hw{flex:1;width:28px;border:0;padding:0 0 0 11px;background:transparent;display:flex;align-items:stretch}
-.device .hw::before{content:"";width:7px;border-radius:0 4px 4px 0;background:linear-gradient(90deg,#6a6d71,#c9cbce);transition:transform .08s}
-.device .hw:active::before{transform:translateX(-3px);background:linear-gradient(90deg,#55585c,#a9abae)}
+/* przyciski boczne leżą na obwodzie obudowy, pod kątem (górny: menu, dolny: wygaszacz) */
+.device{--R:calc(min(86vw,330px) / 2)}
+.device .btns{position:absolute;inset:0;z-index:2;pointer-events:none}
+.device .hw{position:absolute;left:50%;top:50%;width:40px;height:21%;margin:0;border:0;padding:0;background:transparent;pointer-events:auto;display:flex;justify-content:center;
+  transform:translate(-50%,-50%) rotate(var(--a)) translateX(calc(var(--R) + 3px))}
+.device .hw#hwTop{--a:-27deg}
+.device .hw#hwBot{--a:27deg}
+.device .hw::before{content:"";width:9px;height:100%;margin-left:12px;border-radius:0 6px 6px 0;background:linear-gradient(90deg,#5d6064,#d2d4d7 70%,#9a9da1);box-shadow:0 0 0 1px #262626;transition:transform .08s}
+.device .hw:active::before{transform:translateX(-3px);background:linear-gradient(90deg,#4f5256,#aeb0b3 70%,#86898d)}
 .device .spk{position:absolute;right:2.2%;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;z-index:1}
 .device .spk i{width:3px;height:3px;border-radius:50%;background:#2a2a2a}
 .live{display:flex;justify-content:center;align-items:center;width:44px;height:44px;margin:0 auto;border:0;padding:0;background:transparent}
@@ -154,6 +162,7 @@ textarea:focus{border-color:var(--line-3);outline:none}
 .lampbtn.unknown{opacity:.5}
 .lampbtn:disabled{opacity:.25;cursor:default}
 .lampbtn.busy svg.i{animation:pulse 1s ease-in-out infinite}
+#alTest{align-self:center;width:72px;height:56px;border-radius:18px}
 .lampset{display:flex;flex-direction:column;gap:12px}
 .field{flex:1;min-width:0;border:0;background:transparent;font-family:var(--mono);font-size:15px;padding:0;outline:none}
 .field::placeholder{color:var(--muted);font-family:var(--ui)}
@@ -226,6 +235,8 @@ textarea:focus{border-color:var(--line-3);outline:none}
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
   <symbol id="i-restart" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
   <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+  <symbol id="i-fast" viewBox="0 0 24 24"><path d="m5 6 6 6-6 6"/><path d="m13 6 6 6-6 6"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8"/><path d="m16 7 3 3"/><path d="m18.5 4.5 2 2"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></symbol>
   <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
@@ -282,7 +293,7 @@ textarea:focus{border-color:var(--line-3);outline:none}
     <!-- PODGLĄD -->
     <section class="view panel" id="v-view" hidden>
       <div class="head"><button class="back" type="button" aria-label="Wstecz"><svg class="i"><use href="#i-back"/></svg></button></div>
-      <div class="device"><div class="ring"></div><div class="btns"><button class="hw" id="hwTop" type="button" aria-label="Górny przycisk: wygaszacz"></button><button class="hw" id="hwBot" type="button" aria-label="Dolny przycisk: menu"></button></div><div class="spk"><i></i><i></i><i></i><i></i></div><div class="scr"><canvas id="devCv" width="466" height="466" aria-label="Ekran ESP"></canvas></div></div>
+      <div class="device"><div class="ring"></div><div class="btns"><button class="hw" id="hwTop" type="button" aria-label="Górny przycisk: menu"></button><button class="hw" id="hwBot" type="button" aria-label="Dolny przycisk: wygaszacz"></button></div><div class="spk"><i></i><i></i><i></i><i></i></div><div class="scr"><canvas id="devCv" width="466" height="466" aria-label="Ekran ESP"></canvas></div></div>
       <button class="live" id="liveBtn" type="button" aria-label="Pokaż to, co teraz na ESP"><i></i></button>
     </section>
 
@@ -293,7 +304,8 @@ textarea:focus{border-color:var(--line-3);outline:none}
         <div class="bezel-lite"><div class="screen" id="alScreen" style="--d:240px"><canvas id="alCv" width="466" height="466" aria-label="Pobudka na ESP"></canvas></div></div>
       </div>
       <label class="altime"><input type="time" id="alTime" value="09:00" aria-label="Godzina pobudki"></label>
-      <div class="rows"><div class="row"><svg class="i"><use href="#i-alarm"/></svg><div class="lbl">Pokazuj na ESP</div><label class="switch"><input type="checkbox" id="alOn" aria-label="Pokazuj godzinę pobudki"><span></span></label></div></div>
+      <div class="rows"><div class="row"><svg class="i"><use href="#i-alarm"/></svg><div class="lbl">Pokazuj na ESP i dzwoń</div><label class="switch"><input type="checkbox" id="alOn" aria-label="Pokazuj godzinę pobudki i dzwoń"><span></span></label></div></div>
+      <button class="btn" id="alTest" type="button" aria-label="Zadzwoń na próbę (5 s)"><svg class="i"><use href="#i-sound"/></svg></button>
     </section>
 
     <!-- DOM -->
@@ -317,10 +329,12 @@ textarea:focus{border-color:var(--line-3);outline:none}
       <div class="rows">
         <div class="row"><svg class="i"><use href="#i-sun"/></svg><input type="range" id="bright" min="5" max="100" value="70" aria-label="Jasność"><span class="val" id="brightV" style="width:42px;text-align:right">70%</span></div>
         <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Uśpij po 10 min</div><label class="switch"><input type="checkbox" id="sleepSw" checked aria-label="Automatyczne usypianie"><span></span></label></div>
-        <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Ochrona baterii</div><label class="switch"><input type="checkbox" id="battSw" checked aria-label="Ochrona baterii"><span></span></label></div>
+        <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Ochrona baterii (do ok. 80%)</div><label class="switch"><input type="checkbox" id="battSw" checked aria-label="Ochrona baterii"><span></span></label></div>
+        <div class="row"><svg class="i"><use href="#i-fast"/></svg><div class="lbl">Szybki ekran</div><label class="switch"><input type="checkbox" id="fastSw" checked aria-label="Szybkie rysowanie ekranu"><span></span></label></div>
       </div>
       <div class="cap">Program</div>
       <div class="rows">
+        <div class="row"><svg class="i"><use href="#i-wifi"/></svg><div class="lbl">Sygnał Wi-Fi ESP</div><span class="val" id="rssi">—</span></div>
         <div class="row"><svg class="i"><use href="#i-update"/></svg><div class="lbl">Wersja</div><span class="val mono" id="ver">—</span></div>
         <div class="row"><label class="btn" style="flex:1;position:relative"><svg class="i"><use href="#i-update"/></svg><span id="binLbl">Wgraj plik .bin</span><input type="file" id="binIn" accept=".bin" style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Wybierz plik bin"></label></div>
         <div class="row" id="progRow" hidden><div class="lbl"><div class="prog"><i id="progFill"></i></div></div><span class="val" id="progTxt">0%</span></div>
@@ -348,6 +362,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   const PHOTO_PX = 466;                                               // rozdzielczość ekranu ESP
 
   const $ = id => document.getElementById(id);
+  // zawartość każdego panelu w osobnym przewijanym obszarze (patrz .pscroll w CSS)
+  document.querySelectorAll('.panel').forEach(p => { const sc = document.createElement('div'); sc.className = 'pscroll'; while (p.firstChild) sc.appendChild(p.firstChild); p.appendChild(sc); });
   const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let toastT;
   const toast = t => { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2200); };
@@ -451,7 +467,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   function go(id) {
     const p = $(id); if (open === p) return;
     if (open) open.hidden = true;
-    open = p; p.hidden = false; p.scrollTop = 0;
+    open = p; p.hidden = false; p.firstElementChild.scrollTop = 0;
     p.style.transition = home.style.transition = 'none';
     p.style.transform = 'translateX(100%)';
     p.offsetWidth;
@@ -516,6 +532,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     $('battFill').setAttribute('width', b == null ? 0 : Math.max(1.5, 21 * b / 100).toFixed(1));
     $('battPct').textContent = b == null ? '--' : b + '%';
     $('ver').textContent = dev && dev.fw_version ? dev.fw_version : '—';
+    const r = dev && online ? dev.wifi_rssi : null;
+    $('rssi').textContent = r == null ? '—' : `${r} dBm · ${r >= -60 ? 'bardzo dobry' : r >= -70 ? 'dobry' : r >= -80 ? 'słaby' : 'bardzo słaby'}`;
     renderLamp();
   }
   setInterval(renderStatus, 5000);
@@ -618,7 +636,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     $('sendBtn').disabled = sending || (!draft.text && !draft.photo);
   }
   function loadImage(url, cb) { const im = new Image(); im.onload = () => cb(im); im.src = url; }
-  $('msgText').addEventListener('input', () => renderEditor(true));
+  const growText = () => { const t = $('msgText'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; };
+  $('msgText').addEventListener('input', () => { growText(); renderEditor(true); });
   $('photoIn').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
     const url = URL.createObjectURL(f);
@@ -658,6 +677,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     } else ed.scrollTop -= dy;
   });
   const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size === 0) g = null; else if (ptrs.size === 1 && g && g.mode === 'pinch') g = { mode: 'pan' }; };
+  ed.addEventListener('wheel', e => { e.preventDefault(); ed.scrollTop += e.deltaY; }, { passive: false });
   ed.addEventListener('pointerup', endPtr); ed.addEventListener('pointercancel', endPtr);
 
   // bez powiększania całej strony (iOS: szczypanie i podwójne stuknięcie)
@@ -678,7 +698,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       await db.patch('messages', 'status=in.(sent,shown)', { status: 'cleared' });
       await db.insert('messages', { body: draft.text || null, photo_path, photo_first: draft.order === 'photo-first' });
       toast('Wysłano na ESP');
-      $('msgText').value = ''; draft.photo = null; draft.order = 'photo-first';
+      $('msgText').value = ''; growText(); draft.photo = null; draft.order = 'photo-first';
       await poll();
     } catch (err) {
       console.error(err); toast(err.auth ? 'Zaloguj się ponownie' : 'Nie udało się wysłać');
@@ -709,9 +729,9 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   $('editOn').addEventListener('click', async () => {
     if (!last) return;
     const v = await viewOf({ ...last, status: 'sent' });
-    $('msgText').value = v.text; draft.order = v.order;
+    $('msgText').value = v.text; growText(); draft.order = v.order;
     draft.photo = v.photo ? { ...v.photo } : null;
-    renderEditor(); open && open.scrollTo({ top: 0, behavior: 'smooth' });
+    renderEditor(); open && open.firstElementChild.scrollTo({ top: 0, behavior: 'smooth' });
   });
   $('clearOn').addEventListener('click', async () => {
     if (!last) return;
@@ -827,6 +847,12 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     const n = on ? 'bulbon' : 'bulb', I = ic(n);
     drawIcon(X, n, 233 + STBY_OFF[pos][0] - T(I.width / 2), 233 + STBY_OFF[pos][1] - T(I.height / 2), on ? C.ink : C.muted);
   }
+  function drawAlarm(X) {                         // budzik dzwoni: tak jak na ESP
+    const t = warsaw(), dh = digitH();
+    drawTextC(X, 'F_SMALL', 233, 233 - T(dh / 2) - 26, 'pobudka', C.green);
+    drawTextC(X, 'F_CLOCK', 233, 233 + T(dh / 2), `${t.h}:${String(t.m).padStart(2, '0')}`, C.ink);
+    X.beginPath(); X.arc(233, 233, 200, 0, Math.PI * 2); X.lineWidth = 2; X.strokeStyle = C.green; X.stroke();
+  }
   // ---- menu funkcji ----
   function drawApps(X) {
     const items = [['chat', 233 - 78, !!sim.msg], ['pad', 233 + 78, false]];
@@ -882,7 +908,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (a === 'msg' && b != null) sc = +b || 0;
     }
     else s = dev && dev.showing ? 'msg' : (sim.scr === 'msg' ? 'stby' : sim.scr);     // starszy program ESP: zgadujemy
-    if (!['stby', 'home', 'apps', 'msg'].includes(s)) return;
+    if (!['stby', 'home', 'apps', 'msg', 'alarm'].includes(s)) return;
     if (s !== sim.scr) { sim.scr = s; sim.shownAt = now(); sim.vel = 0; if (s === 'msg') sim.scrollY = sc || 0; sim.dirty = true; }
     else if (s === 'msg' && sc != null && !tp.down && Math.abs(sim.vel) <= 8 && Math.abs(sc - sim.scrollY) > 1) { sim.scrollY = sc; sim.dirty = true; }
     if (pos !== sim.pos) { sim.pos = pos; sim.dirty = true; }
@@ -935,6 +961,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if (sim.scr === 'msg') { if (sim.msg) X.drawImage(sim.msg.canvas, 0, T(sim.scrollY), DEV, DEV, 0, 0, DEV, DEV); }
     else if (sim.scr === 'home') drawHome(X);
     else if (sim.scr === 'apps') drawApps(X);
+    else if (sim.scr === 'alarm') drawAlarm(X);
     else if (sim.flashUntil > now()) drawBulb(X, sim.pos, sim.flashOn);
     else drawStandby(X, sim.pos, !!cfgv('wake_enabled', false), cfgv('wake_time', '09:00'), hasUnread());
   }
@@ -944,13 +971,15 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     const dt = sim.lastT ? Math.min(.1, (t - sim.lastT) / 1000) : 0; sim.lastT = t;
     const n = now();
     if (!sim.live) {                              // tester: te same czasy co w ESP
+      const w = warsaw(), wt = cfgv('wake_time', '09:00'), key = w.d + '-' + wt;
+      if (cfgv('wake_enabled', false) && `${String(w.h).padStart(2, '0')}:${String(w.m).padStart(2, '0')}` === wt && sim.rang !== key) { sim.rang = key; simGo('alarm'); }
       if (sim.scr === 'stby' && n - sim.movedAt > 90000) { sim.pos = (sim.pos + 4) % 9; sim.movedAt = n; sim.dirty = true; }
       const idle = n - sim.lastAct, ms = cfgv('msg_show_min', 10), sl = cfgv('sleep_min', 10);
       if (sim.scr === 'msg' && ms > 0 && idle > ms * 60000) simGo('stby');
       if ((sim.scr === 'home' || sim.scr === 'apps') && sl > 0 && idle > sl * 60000) simGo('stby');
     }
     if (sim.flashUntil && n > sim.flashUntil) { sim.flashUntil = 0; sim.dirty = true; }
-    const mn = new Date().getMinutes(); if (sim.scr === 'home' && mn !== sim.lastMin) sim.dirty = true; sim.lastMin = mn;
+    const mn = new Date().getMinutes(); if ((sim.scr === 'home' || sim.scr === 'alarm') && mn !== sim.lastMin) sim.dirty = true; sim.lastMin = mn;
     if (sim.scr === 'msg' && !tp.down && Math.abs(sim.vel) > 8) { sim.scrollY += sim.vel * dt; sim.vel *= Math.pow(.12, dt); sim.dirty = true; }
     else if (!tp.down) sim.vel = 0;
     if (sim.scr === 'msg' && sim.msg) {
@@ -960,7 +989,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     }
     // jasność: czuwanie ok. 30%, pusty ekran czuwania = wyłączony; płynnie jak w ESP
     const br = cfgv('brightness', 70), empty = sim.scr === 'stby' && !cfgv('wake_enabled', false) && !hasUnread() && !(sim.flashUntil > n);
-    const target = sim.scr === 'stby' ? (empty ? 0 : stbyBr(br)) : br;
+    const target = sim.scr === 'stby' ? (empty ? 0 : stbyBr(br)) : sim.scr === 'alarm' ? 100 : br;
     const step = 240 * (dt || 1);
     sim.bright = sim.bright < target ? Math.min(target, sim.bright + step) : Math.max(target, sim.bright - step);
     cv.style.opacity = Math.sqrt(sim.bright / 100).toFixed(3);
@@ -984,6 +1013,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   const devXY = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * DEV, (e.clientY - r.top) / r.height * DEV]; };
   function simTap(x, y) {
     sim.lastAct = now();
+    if (sim.scr === 'alarm') return simGo('home');     // dotknięcie wyłącza budzik
     if (sim.scr === 'stby') {
       if (hasUnread()) simGo('msg', true);
       else if (cfgv('lamp_id', '')) {             // włącznik lampy: na żywo ESP przełącza prawdziwą lampę
@@ -1001,7 +1031,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if (tp.ids.size >= 2) {                      // dwa palce naraz = zakrycie dłonią
       if (tp.ids.size === 2) sendInput('palm');
       tp.down = false;
-      if (sim.scr !== 'stby' && n - sim.shownAt > 700) { if (sim.scr === 'msg') sim.seen = true; simGo('stby'); }
+      if (sim.scr === 'alarm') simGo('home');
+      else if (sim.scr !== 'stby' && n - sim.shownAt > 700) { if (sim.scr === 'msg') sim.seen = true; simGo('stby'); }
       return;
     }
     if (n - sim.shownAt < 700) return;            // chwilę po zmianie ekranu dotyk jest ignorowany
@@ -1031,8 +1062,19 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   };
   cv.addEventListener('pointerup', ptrEnd); cv.addEventListener('pointercancel', ptrEnd);
   // przyciski z boku: górny = wygaszacz (czuwanie ↔ ekran główny), dolny = menu (ekran główny ↔ funkcje)
-  $('hwTop').addEventListener('click', () => { sendInput('top'); sim.lastAct = now(); if (sim.scr === 'msg') sim.seen = true; simGo(sim.scr === 'stby' ? 'home' : 'stby'); });
-  $('hwBot').addEventListener('click', () => { sendInput('bot'); sim.lastAct = now(); if (sim.scr === 'msg') sim.seen = true; simGo(sim.scr === 'home' ? 'apps' : 'home'); });
+  // górny (menu): czuwanie / ekran główny → funkcje, reszta → ekran główny; dolny (wygaszacz): czuwanie → ekran główny, reszta → czuwanie
+  $('hwTop').addEventListener('click', () => {
+    sendInput('menu'); sim.lastAct = now();
+    if (sim.scr === 'alarm') return simGo('home');
+    if (sim.scr === 'msg') sim.seen = true;
+    simGo(sim.scr === 'home' || sim.scr === 'stby' ? 'apps' : 'home');
+  });
+  $('hwBot').addEventListener('click', () => {
+    sendInput('sleep'); sim.lastAct = now();
+    if (sim.scr === 'alarm') return simGo('home');
+    if (sim.scr === 'msg') sim.seen = true;
+    simGo(sim.scr === 'stby' ? 'home' : 'stby');
+  });
   addEventListener('resize', () => renderEditor(true));
 
   /* ===================== odświeżanie ===================== */
@@ -1066,7 +1108,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       const c = (await db.get('device_config', 'id=eq.esp&select=*'))[0];
       if (!c) return;
       $('bright').value = c.brightness; $('brightV').textContent = c.brightness + '%';
-      $('sleepSw').checked = c.sleep_min > 0; $('battSw').checked = c.battery_protect;
+      $('sleepSw').checked = c.sleep_min > 0; $('battSw').checked = c.battery_protect; $('fastSw').checked = c.fast_display !== false;
     } catch (e) { console.warn(e); }
   }
   function saveConfig() {
@@ -1078,6 +1120,9 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   $('bright').addEventListener('input', e => { $('brightV').textContent = e.target.value + '%'; saveConfig(); });
   $('sleepSw').addEventListener('change', saveConfig);
   $('battSw').addEventListener('change', saveConfig);
+  $('fastSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { fast_display: $('fastSw').checked, updated_at: new Date().toISOString() })
+    .then(() => toast($('fastSw').checked ? 'Szybki ekran włączony' : 'Zwykłe rysowanie ekranu'))
+    .catch(() => toast('Nie zapisano — uruchom 06_dzwiek_ekran.sql w Supabase')));
   // ---- budzik ----
   let alT;
   const alLabel = () => ($('alTime').value || '09:00').replace(/^0(?=\d:)/, '');
@@ -1102,6 +1147,10 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   $('alTime').addEventListener('change', saveAlarm);
   $('alTime').addEventListener('input', renderAlarm);
   $('alOn').addEventListener('change', saveAlarm);
+  $('alTest').addEventListener('click', async () => {
+    try { await req('/rest/v1/commands', { method: 'POST', body: { kind: 'ring', payload: { s: 5, t: Math.floor(Date.now() / 1000) } }, headers: { Prefer: 'return=minimal' } }); toast('ESP dzwoni przez 5 s'); }
+    catch (e) { toast('Nie udało się — uruchom 06_dzwiek_ekran.sql w Supabase'); }
+  });
 
   // ---- dom: lampa (przełącza ją ESP przez sieć domową) ----
   let lampCfg = null, lampWait = 0, lampWant = null;
