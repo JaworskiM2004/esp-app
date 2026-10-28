@@ -435,6 +435,7 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
         <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Ochrona baterii (do ok. 80%)</div><label class="switch"><input type="checkbox" id="battSw" checked aria-label="Ochrona baterii"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-bulb"/></svg><div class="lbl">Budzik miga światłem<small>30 s: zapala i gasi lampę, na końcu zostaje zapalona</small></div><label class="switch"><input type="checkbox" id="alarmLightSw" checked aria-label="Budzik miga światłem"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Cisza nocna<small>22:00–7:00 dźwięki najwyżej 25%, budzik bez zmian</small></div><label class="switch"><input type="checkbox" id="quietSw" aria-label="Cisza nocna"><span></span></label></div>
+        <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Tryb baterii<small>bez ładowarki: sen w czuwaniu, lampa tylko z aplikacji</small></div><label class="switch"><input type="checkbox" id="saverSw" checked aria-label="Tryb baterii"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Na baterii sprawdzaj<small>serduszka i wiadomości, gdy ESP śpi</small></div><select class="field" id="battChk" aria-label="Jak często ESP na baterii sprawdza wiadomości" style="flex:none;max-width:40%"><option value="0">nigdy</option><option value="5">co 5 min</option><option value="15">co 15 min</option><option value="30">co 30 min</option></select></div>
         <div class="row"><svg class="i"><use href="#i-phone"/></svg><div class="lbl">Budzik też w iPhonie<small>przez Skróty — przy dodawaniu budzika</small></div><label class="switch"><input type="checkbox" id="iosAlSw" aria-label="Dodawaj budzik także w aplikacji Zegar"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-fast"/></svg><div class="lbl">Szybki ekran</div><label class="switch"><input type="checkbox" id="fastSw" checked aria-label="Szybkie rysowanie ekranu"><span></span></label></div>
@@ -2104,11 +2105,13 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (c.volume != null) { $('vol').value = c.volume; $('volV').textContent = c.volume + '%'; }
       $('sleepSw').checked = c.sleep_min > 0; $('battSw').checked = c.battery_protect; $('fastSw').checked = c.fast_display !== false;
       $('alarmLightSw').checked = c.alarm_light !== false; ntfyTopic = c.ntfy_topic || ''; renderNtfy();
-      $('quietSw').checked = !!c.quiet_night; $('battChk').value = String(c.battery_check_min ?? 15);
+      $('quietSw').checked = !!c.quiet_night; $('battChk').value = String(c.battery_check_min ?? 15); $('saverSw').checked = c.battery_saver !== false;
     } catch (e) { console.warn(e); }
     $('iosAlSw').checked = !!store.get('esp.iosAlarm'); $('iosAlHint').hidden = !$('iosAlSw').checked;
     loadBatt(); loadVc();
   }
+  $('saverSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { battery_saver: $('saverSw').checked, updated_at: new Date().toISOString() })
+    .then(() => toast($('saverSw').checked ? 'Tryb baterii włączony' : 'Tryb baterii wyłączony — ESP nie będzie usypiać')).catch(() => toast('Nie zapisano — uruchom 12_bateria.sql w Supabase')));
   $('battChk').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { battery_check_min: +$('battChk').value, updated_at: new Date().toISOString() })
     .then(() => toast(+$('battChk').value ? 'Na baterii: sprawdzanie ' + $('battChk').selectedOptions[0].text : 'Na baterii: bez sprawdzania (najmniej prądu)')).catch(() => toast('Nie zapisano — uruchom 11_glos.sql w Supabase')));
   $('quietSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { quiet_night: $('quietSw').checked, updated_at: new Date().toISOString() })
