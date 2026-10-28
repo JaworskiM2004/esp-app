@@ -340,7 +340,6 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
         <button class="tile" id="gamesTile" type="button" aria-label="Gry — otwórz na ESP"><svg class="i"><use href="#i-dice"/></svg></button>
       </div>
       <button class="wakeend" id="wakeEnd" type="button" hidden><span>Zakończ pobudkę</span><small id="wakeEndSub">drzemki co 2, 5, 10, 20 min</small></button>
-      <div class="heartrow"><button class="heartbtn" id="heartBtn" type="button" aria-label="Wyślij serduszko na ESP"><svg class="i"><use href="#i-heart"/></svg></button></div>
     </section>
 
     <!-- WIADOMOŚĆ -->
@@ -436,7 +435,7 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
         <div class="row"><svg class="i"><use href="#i-bulb"/></svg><div class="lbl">Budzik miga światłem<small>30 s: zapala i gasi lampę, na końcu zostaje zapalona</small></div><label class="switch"><input type="checkbox" id="alarmLightSw" checked aria-label="Budzik miga światłem"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Cisza nocna<small>22:00–7:00 dźwięki najwyżej 25%, budzik bez zmian</small></div><label class="switch"><input type="checkbox" id="quietSw" aria-label="Cisza nocna"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Tryb baterii<small>bez ładowarki: sen w czuwaniu (na razie wyłączony — testujemy wykrywanie ładowarki)</small></div><label class="switch"><input type="checkbox" id="saverSw" aria-label="Tryb baterii"><span></span></label></div>
-        <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Na baterii sprawdzaj<small>serduszka i wiadomości, gdy ESP śpi</small></div><select class="field" id="battChk" aria-label="Jak często ESP na baterii sprawdza wiadomości" style="flex:none;max-width:40%"><option value="0">nigdy</option><option value="5">co 5 min</option><option value="15">co 15 min</option><option value="30">co 30 min</option></select></div>
+        <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Na baterii sprawdzaj<small>wiadomości, gdy ESP śpi</small></div><select class="field" id="battChk" aria-label="Jak często ESP na baterii sprawdza wiadomości" style="flex:none;max-width:40%"><option value="0">nigdy</option><option value="5">co 5 min</option><option value="15">co 15 min</option><option value="30">co 30 min</option></select></div>
         <div class="row"><svg class="i"><use href="#i-phone"/></svg><div class="lbl">Budzik też w iPhonie<small>przez Skróty — przy dodawaniu budzika</small></div><label class="switch"><input type="checkbox" id="iosAlSw" aria-label="Dodawaj budzik także w aplikacji Zegar"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-fast"/></svg><div class="lbl">Szybki ekran</div><label class="switch"><input type="checkbox" id="fastSw" checked aria-label="Szybkie rysowanie ekranu"><span></span></label></div>
       </div>
@@ -447,11 +446,6 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
       </div>
       <div class="hint" style="text-align:left">Nową sieć dodasz na ESP: Ustawienia → Wi-Fi (z listy z klawiaturą albo „z telefonu”). Hasła zostają tylko na ESP.</div>
       <div class="hint" id="iosAlHint" style="text-align:left" hidden>Raz zrób skrót: Skróty → + → akcja „Utwórz budzik”, godzina = „Dane wejściowe skrótu”, nazwa skrótu: <b>ESP budzik</b>. Potem każdy nowy budzik ESP otworzy ten skrót z godziną.</div>
-      <div class="cap">Powiadomienia</div>
-      <div class="rows">
-        <div class="row"><svg class="i"><use href="#i-bell"/></svg><div class="lbl">Serduszko z ESP<small id="ntfyInfo">wyłączone</small></div><button class="sbtn wide" id="ntfyBtn" type="button">Włącz</button></div>
-      </div>
-      <div class="hint" id="ntfyHint" style="text-align:left" hidden></div>
       <div class="cap">Koło fortuny</div>
       <div class="rows" id="whList"></div>
       <div class="aladd" style="margin-top:2px"><input type="text" id="whNew" maxlength="40" placeholder="Nowe pole, np. pizza" aria-label="Nowe pole koła fortuny" enterkeyhint="done"><button class="sbtn" id="whAdd" type="button" aria-label="Dodaj pole"><svg class="i"><use href="#i-plus"/></svg></button></div>
@@ -480,7 +474,6 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
   </main>
 </div>
 <div class="toast" id="toast" hidden></div>
-<div class="hfx" id="hfx" hidden aria-hidden="true"><svg class="i"><use href="#i-heart"/></svg></div>
 
 
 <script>/* czcionki i ikony z ESP (assets.h) — wygenerowane przez tools/gen_web_atlas.py */
@@ -687,12 +680,12 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     $('ver').textContent = dev && dev.fw_version ? dev.fw_version : '—';
     $('lastReset').textContent = dev && dev.last_reset ? dev.last_reset : '—';
     { const wk = !!(dev && dev.wake_active) && !wakeEndSent;
-      $('wakeEnd').hidden = !wk; document.querySelector('#v-home-screen .grid').hidden = wk; document.querySelector('#v-home-screen .heartrow').hidden = wk;
+      $('wakeEnd').hidden = !wk; document.querySelector('#v-home-screen .grid').hidden = wk;
       const sn = dev && /^stby:\d+:(\d+:\d+)/.exec(dev.screen || ''); $('wakeEndSub').textContent = sn ? 'drzemka do ' + sn[1] : 'drzemki co 2, 5, 10, 20 min';
       if (wakeEndSent && dev && !dev.wake_active) wakeEndSent = 0; if (wakeEndSent && Date.now() > wakeEndSent) wakeEndSent = 0; }
     const r = dev && online ? dev.wifi_rssi : null;
     $('rssi').textContent = r == null ? '—' : `${r} dBm · ${r >= -60 ? 'bardzo dobry' : r >= -70 ? 'dobry' : r >= -80 ? 'słaby' : 'bardzo słaby'}`;
-    renderLamp(); checkHeart(); renderTimerUi();
+    renderLamp(); renderTimerUi();
     $('wifiNow').textContent = dev && online && dev.wifi_ssid ? dev.wifi_ssid : '—';
     $('wifiSaved').textContent = dev && dev.wifi_saved ? 'zapamiętane: ' + dev.wifi_saved.split('\n').filter(Boolean).join(', ') : '';
     $('btInfo').textContent = dev && online && dev.bt_info ? dev.bt_info : '';
@@ -1054,7 +1047,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   // ---- menu funkcji ----
   const APP_RING = 176, APP_R = 46, C_HEART = 'rgb(255,92,122)';
   const appItems = () => {                        // jak w ESP: siedem funkcji na okręgu (od góry), w środku robocik i ustawienia
-    const out = ['chat', 'alarm', 'dice', 'pad', 'heart', 'torch'].map((n, i) => { const a = (-90 + 360 / 6 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), n !== 'chat' || !!sim.msg, APP_R]; });
+    const out = ['chat', 'alarm', 'dice', 'pad', 'torch'].map((n, i) => { const a = (-90 + 360 / 5 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), n !== 'chat' || !!sim.msg, APP_R]; });
     out.push(['robot', 233, 181, true, 54], ['gear', 233, 297, true, 40]); return out;
   };
   function drawApps(X) {
@@ -1942,7 +1935,6 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
         if (n === 'dice') simGo('games');
         if (n === 'level') simGo(n);
         if (n === 'torch') { sim.torch = 50; simGo('torch'); }
-        if (n === 'heart') heartSim(1);
         if (n === 'robot') simGo('robot');
         if (n === 'gear') simGo('set');
         return;
@@ -2119,7 +2111,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       $('bright').value = c.brightness; $('brightV').textContent = c.brightness + '%';
       if (c.volume != null) { $('vol').value = c.volume; $('volV').textContent = c.volume + '%'; }
       $('sleepSw').checked = c.sleep_min > 0; $('battSw').checked = c.battery_protect; $('fastSw').checked = c.fast_display !== false;
-      $('alarmLightSw').checked = c.alarm_light !== false; ntfyTopic = c.ntfy_topic || ''; renderNtfy();
+      $('alarmLightSw').checked = c.alarm_light !== false;
       $('quietSw').checked = !!c.quiet_night; $('battChk').value = String(c.battery_check_min ?? 15); $('saverSw').checked = c.battery_saver === true;
     } catch (e) { console.warn(e); }
     $('iosAlSw').checked = !!store.get('esp.iosAlarm'); $('iosAlHint').hidden = !$('iosAlSw').checked;
@@ -2202,27 +2194,6 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     const f = vcLast[vcSel]; if (!f) return;
     try { const a = new Audio(await fileURL('voice', f)); await a.play(); } catch (e) { toast('Nie udało się odtworzyć'); }
   });
-  // ---- powiadomienia: ntfy.sh (aplikacja ntfy na iPhonie, kanał o losowej nazwie) ----
-  let ntfyTopic = '';
-  function renderNtfy() {
-    $('ntfyInfo').textContent = ntfyTopic ? 'kanał: ' + ntfyTopic : 'wyłączone';
-    $('ntfyBtn').textContent = ntfyTopic ? 'Test' : 'Włącz';
-    const h = $('ntfyHint'); h.hidden = !ntfyTopic;
-    if (ntfyTopic) h.innerHTML = `1. Zainstaluj aplikację <b>ntfy</b> (App Store) i zezwól na powiadomienia.<br>2. W ntfy: <b>+</b> → nazwa kanału <b class="mono" style="font-family:var(--mono)">${esc(ntfyTopic)}</b> (serwer ntfy.sh) → Subscribe.<br>3. Stuknij „Test”. Od teraz stuknięcie serduszka na ESP przyjdzie jako powiadomienie. <a href="#" id="ntfyCopy" style="color:var(--ink-2)">Kopiuj nazwę</a> · <a href="#" id="ntfyOff" style="color:var(--muted)">Wyłącz</a>`;
-    const cp = $('ntfyCopy'); if (cp) cp.onclick = e => { e.preventDefault(); navigator.clipboard && navigator.clipboard.writeText(ntfyTopic).then(() => toast('Skopiowano'), () => toast(ntfyTopic)); };
-    const off = $('ntfyOff'); if (off) off.onclick = async e => { e.preventDefault(); try { await db.patch('device_config', 'id=eq.esp', { ntfy_topic: null }); ntfyTopic = ''; renderNtfy(); toast('Powiadomienia wyłączone'); } catch (err) { toast('Nie zapisano'); } };
-  }
-  $('ntfyBtn').addEventListener('click', async () => {
-    if (!ntfyTopic) {
-      const a = 'abcdefghijkmnpqrstuvwxyz23456789', r = crypto.getRandomValues(new Uint8Array(14));
-      const t = 'esp-' + Array.from(r, x => a[x % a.length]).join('');
-      try { await db.patch('device_config', 'id=eq.esp', { ntfy_topic: t }); ntfyTopic = t; renderNtfy(); toast('Kanał gotowy — dodaj go w aplikacji ntfy'); }
-      catch (e) { toast('Nie zapisano — uruchom 10_pobudka.sql w Supabase'); }
-      return;
-    }
-    try { const r = await fetch('https://ntfy.sh/', { method: 'POST', body: JSON.stringify({ topic: ntfyTopic, title: 'ESP', message: 'Test z aplikacji — działa', tags: ['heart'] }) }); toast(r.ok ? 'Wysłano test' : 'ntfy: ' + r.status); }
-    catch (e) { toast('Brak połączenia z ntfy.sh'); }
-  });
   $('alarmLightSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { alarm_light: $('alarmLightSw').checked, updated_at: new Date().toISOString() })
     .then(() => toast($('alarmLightSw').checked ? 'Budzik będzie migał światłem' : 'Budzik bez światła')).catch(() => toast('Nie zapisano — uruchom 10_pobudka.sql w Supabase')));
   $('iosAlSw').addEventListener('change', () => { store.set('esp.iosAlarm', $('iosAlSw').checked || null); $('iosAlHint').hidden = !$('iosAlSw').checked; });
@@ -2301,27 +2272,6 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (store.get('esp.iosAlarm')) setTimeout(() => { location.href = `shortcuts://run-shortcut?name=${encodeURIComponent('ESP budzik')}&input=text&text=${encodeURIComponent(hm2(hm))}`; }, 400);   // też w Zegarze iPhone'a
     } catch (e) { toast('Nie zapisano — uruchom 07_budziki.sql w Supabase'); }
   });
-  // ---- serduszko: telefon → ESP (bije na ekranie), ESP → telefon (stuknięcie w ESP) ----
-  $('heartBtn').addEventListener('click', async () => {
-    const b = $('heartBtn'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
-    try {
-      await req('/rest/v1/commands', { method: 'POST', body: { kind: 'ping', payload: { t: Math.floor(Date.now() / 1000) } }, headers: { Prefer: 'return=minimal' } });
-      toast(isOnline() ? 'Serduszko leci na ESP' : dev && dev.screen === 'sleep' ? 'ESP śpi na baterii — serduszko dotrze przy najbliższym sprawdzeniu' : 'Serduszko poczeka, aż ESP wróci do sieci');
-    } catch (e) { toast('Nie wysłano — uruchom 08_zabawki.sql w Supabase'); }
-  });
-  let heartSeen = 0; try { heartSeen = +localStorage.getItem('espHeartSeen') || 0; } catch (e) {}
-  function heartFx() {
-    const f = $('hfx'); f.hidden = true; void f.offsetWidth; f.hidden = false;
-    clearTimeout(heartFx.t); heartFx.t = setTimeout(() => f.hidden = true, 2100);
-    try { navigator.vibrate && navigator.vibrate([60, 80, 60]); } catch (e) {}
-  }
-  function checkHeart() {                         // serduszko z ESP (z ostatnich 2 minut, każde tylko raz)
-    if (!dev || !dev.esp_heart_at) return;
-    const t = Date.parse(dev.esp_heart_at); if (!(t > heartSeen)) return;
-    const first = !heartSeen; heartSeen = t; try { localStorage.setItem('espHeartSeen', String(t)); } catch (e) {}
-    if (Date.now() - t < 120000 || (first && Date.now() - t < 20000)) heartFx();
-  }
-
   // ---- minutnik: odlicza ESP; telefon ustawia, pauzuje, dodaje minutę ----
   const TM_LEN = 2 * Math.PI * 108, TM_PRESETS = [1, 3, 5, 10, 15, 20, 30, 45, 60];
   let tmLocal = null, tmWasDone = false;          // tmLocal: to, co właśnie wysłaliśmy (zanim ESP potwierdzi)
