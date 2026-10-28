@@ -219,6 +219,8 @@ textarea:focus{border-color:var(--line-3);outline:none}
 .aladd input::-webkit-calendar-picker-indicator{filter:invert(.7)}
 .aladd .sbtn{width:52px;height:52px;border-radius:16px}
 #ringBtn{align-self:center;width:72px;height:56px;border-radius:18px}
+#ringBtn.on{border-color:var(--ink-2);box-shadow:0 0 34px rgba(255,238,200,.08)}
+#ringBtn.on svg.i{stroke:var(--ink)}
 select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appearance:none;text-align:right}
 #alTest{align-self:center;width:72px;height:56px;border-radius:18px}
 .lampset{display:flex;flex-direction:column;gap:12px}
@@ -416,7 +418,7 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
           <div class="row"><svg class="i"><use href="#i-ring"/></svg><div class="lbl">Obramówka LED<small id="ringState" style="display:block;font-size:12.5px;color:var(--muted)">włącz ją w LEDVANCE, potem „zapamiętaj”</small></div><button class="sbtn wide" id="ringSnap" type="button" aria-label="Zapamiętaj obecny wygląd lampy jako obramówkę">Zapamiętaj</button></div>
           <div class="row" id="ringOldRow"><svg class="i"><use href="#i-ring"/></svg><div class="lbl">Jeden przełącznik</div><select class="field" id="lampRing" aria-label="Który przełącznik lampy to obramówka" style="flex:none;max-width:52%"></select></div>
         </div>
-        <div class="hint mono" id="lampDps" style="text-align:left;word-break:break-all;font-family:var(--mono);font-size:12px"></div>
+        <div class="hint mono" id="lampDps" style="text-align:left;word-break:break-all;white-space:pre-line;font-family:var(--mono);font-size:12px"></div>
         <button class="send" id="lampSave" type="button" aria-label="Zapisz lampę"><svg class="i"><use href="#i-check"/></svg></button>
       </div>
       <div class="cap">Dziennik światła</div>
@@ -2337,8 +2339,12 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   // ---- dom: lampa (przełącza ją ESP przez sieć domową) ----
   let lampCfg = null, lampWait = 0, lampWant = null;
   function renderLamp() {
-    const on = dev ? dev.light_on : null, known = on === true || on === false, b = $('lampBtn');
+    let dps = {}; try { dps = dev && dev.lamp_dps ? JSON.parse(dev.lamp_dps) : {}; } catch (e) {}
+    const seg = segOf(dps['51']), ringOnly = !!(seg && dev && dev.light_on === true && (seg.sw & 2) && !(seg.sw & 1));
+    const on = dev ? (ringOnly ? false : dev.light_on) : null, known = on === true || on === false, b = $('lampBtn');
+    lampOnNow = on;
     if (lampWait && (Date.now() > lampWait || (known && on === lampWant))) lampWait = 0;
+    $('ringBtn').classList.toggle('on', ringOnly);
     const conf = !!(lampCfg && lampCfg.lamp_id);
     b.disabled = !conf;
     b.classList.toggle('on', lampWait ? !!lampWant : on === true);
@@ -2346,17 +2352,27 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     b.classList.toggle('busy', !!lampWait);
     b.setAttribute('aria-pressed', String(on === true));
     $('lampInfo').textContent = !conf ? '' : !isOnline() ? 'ESP offline' : (dev && dev.lamp_info) || '';
-    $('ringBtn').hidden = !(conf && (lampCfg.lamp_ring_dp || lampCfg.lamp_ring_json));
-    $('ringState').textContent = lampCfg && lampCfg.lamp_ring_json ? 'zapamiętana ✓ — przytrzymaj ekran ESP' : 'włącz ją w LEDVANCE, potem „zapamiętaj”';
-    $('ringOldRow').hidden = !(lampCfg && lampCfg.lamp_ring_dp) || !!(lampCfg && lampCfg.lamp_ring_json);
+    $('ringBtn').hidden = !(conf && (seg || lampCfg.lamp_ring_dp || lampCfg.lamp_ring_json));
+    $('ringState').textContent = seg ? 'wykryta sama ✓ — przytrzymaj ekran ESP albo przycisk pod żarówką' : lampCfg && lampCfg.lamp_ring_json ? 'zapamiętana ✓ — przytrzymaj ekran ESP' : 'włącz ją w LEDVANCE, potem „zapamiętaj”';
+    $('ringSnap').hidden = !!seg;
+    $('ringOldRow').hidden = !!seg || !(lampCfg && lampCfg.lamp_ring_dp) || !!(lampCfg && lampCfg.lamp_ring_json);
     // przełączniki lampy (od ESP): pomagają znaleźć obramówkę — przełącz ją w aplikacji LEDVANCE i zobacz, która wartość się zmienia
-    let dps = {}; try { dps = dev && dev.lamp_dps ? JSON.parse(dev.lamp_dps) : {}; } catch (e) {}
-    $('lampDps').textContent = Object.keys(dps).length ? 'Przełączniki lampy: ' + Object.entries(dps).map(([k, v]) => `${k}=${typeof v === 'string' && v.length > 14 ? v.slice(0, 14) + '…' : v}`).join('  ') : '';
+    $('lampDps').textContent = Object.keys(dps).length ? 'Przełączniki lampy: ' + Object.entries(dps).map(([k, v]) => `${k}=${k === '51' ? v : typeof v === 'string' && v.length > 14 ? v.slice(0, 14) + '…' : v}`).join('  ')
+      + (seg ? `\nStrefy (51): główne ${seg.sw & 1 ? 'wł.' : 'wył.'}, obramówka ${seg.sw & 2 ? 'wł.' : 'wył.'} · kolor obramówki H${seg.h} S${seg.s} V${seg.v} · jasność głównego ${seg.wb}` : '') : '';
     const sel = $('lampRing'), cur = (lampCfg && lampCfg.lamp_ring_dp) || '';
     const opts = [''].concat(Object.keys(dps).filter(k => typeof dps[k] === 'boolean' && k !== '20' && k !== '1'));
     if (cur && !opts.includes(cur)) opts.push(cur);
     const html = opts.map(k => `<option value="${esc(k)}"${k === cur ? ' selected' : ''}>${k ? 'nr ' + esc(k) + (k in dps ? (dps[k] ? ' (wł.)' : ' (wył.)') : '') : '—'}</option>`).join('');
     if (sel.dataset.html !== html && document.activeElement !== sel) { sel.innerHTML = html; sel.dataset.html = html; }
+  }
+  // DP 51 lamp LEDVANCE z podświetleniem: 12 bajtów (base64) — strefy (bit 1 główne, bit 2 obramówka), kolor obramówki, jasność i barwa głównego
+  let lampOnNow = null;                           // stan głównego światła (sama obramówka = wyłączone)
+  function segOf(v) {
+    if (typeof v !== 'string') return null;
+    let b; try { b = Uint8Array.from(atob(v), c => c.charCodeAt(0)); } catch (e) { return null; }
+    if (b.length !== 12) return null;
+    const u = i => b[i] << 8 | b[i + 1];
+    return { sw: u(0), h: u(2), s: u(4), v: u(6), wb: u(8), wc: u(10) };
   }
   async function loadLamp() {
     try { lampCfg = (await db.get('device_config', 'id=eq.esp&select=*'))[0] || null; } catch (e) { console.warn(e); }
@@ -2417,7 +2433,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     catch (e) { toast('Nie udało się'); }
   });
   $('lampBtn').addEventListener('click', async () => {
-    const on = dev ? dev.light_on : null, want = on === true ? false : on === false ? true : null;
+    const on = dev ? lampOnNow : null, want = on === true ? false : on === false ? true : null;
     lampWant = want === null ? true : want; lampWait = Date.now() + 8000; renderLamp();
     const t = Math.floor(Date.now() / 1000);
     try { await req('/rest/v1/commands', { method: 'POST', body: { kind: 'light', payload: want === null ? { t } : { on: want, t } }, headers: { Prefer: 'return=minimal' } }); poll(); }
