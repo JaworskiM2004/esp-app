@@ -435,7 +435,7 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
         <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Ochrona baterii (do ok. 80%)</div><label class="switch"><input type="checkbox" id="battSw" checked aria-label="Ochrona baterii"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-bulb"/></svg><div class="lbl">Budzik miga światłem<small>30 s: zapala i gasi lampę, na końcu zostaje zapalona</small></div><label class="switch"><input type="checkbox" id="alarmLightSw" checked aria-label="Budzik miga światłem"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Cisza nocna<small>22:00–7:00 dźwięki najwyżej 25%, budzik bez zmian</small></div><label class="switch"><input type="checkbox" id="quietSw" aria-label="Cisza nocna"><span></span></label></div>
-        <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Tryb baterii<small>bez ładowarki: sen w czuwaniu, lampa tylko z aplikacji</small></div><label class="switch"><input type="checkbox" id="saverSw" checked aria-label="Tryb baterii"><span></span></label></div>
+        <div class="row"><svg class="i"><use href="#i-moon"/></svg><div class="lbl">Tryb baterii<small>bez ładowarki: sen w czuwaniu (na razie wyłączony — testujemy wykrywanie ładowarki)</small></div><label class="switch"><input type="checkbox" id="saverSw" aria-label="Tryb baterii"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-bolt"/></svg><div class="lbl">Na baterii sprawdzaj<small>serduszka i wiadomości, gdy ESP śpi</small></div><select class="field" id="battChk" aria-label="Jak często ESP na baterii sprawdza wiadomości" style="flex:none;max-width:40%"><option value="0">nigdy</option><option value="5">co 5 min</option><option value="15">co 15 min</option><option value="30">co 30 min</option></select></div>
         <div class="row"><svg class="i"><use href="#i-phone"/></svg><div class="lbl">Budzik też w iPhonie<small>przez Skróty — przy dodawaniu budzika</small></div><label class="switch"><input type="checkbox" id="iosAlSw" aria-label="Dodawaj budzik także w aplikacji Zegar"><span></span></label></div>
         <div class="row"><svg class="i"><use href="#i-fast"/></svg><div class="lbl">Szybki ekran</div><label class="switch"><input type="checkbox" id="fastSw" checked aria-label="Szybkie rysowanie ekranu"><span></span></label></div>
@@ -452,6 +452,9 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
         <div class="row"><svg class="i"><use href="#i-bell"/></svg><div class="lbl">Serduszko z ESP<small id="ntfyInfo">wyłączone</small></div><button class="sbtn wide" id="ntfyBtn" type="button">Włącz</button></div>
       </div>
       <div class="hint" id="ntfyHint" style="text-align:left" hidden></div>
+      <div class="cap">Koło fortuny</div>
+      <div class="rows" id="whList"></div>
+      <div class="aladd" style="margin-top:2px"><input type="text" id="whNew" maxlength="40" placeholder="Nowe pole, np. pizza" aria-label="Nowe pole koła fortuny" enterkeyhint="done"><button class="sbtn" id="whAdd" type="button" aria-label="Dodaj pole"><svg class="i"><use href="#i-plus"/></svg></button></div>
       <div class="cap">Bateria</div>
       <div class="rows"><div class="row" style="display:block"><canvas id="battCv" width="640" height="180" style="width:100%;height:90px;display:block" aria-label="Bateria z ostatnich 48 godzin"></canvas><div class="hint" id="battInfo" style="text-align:left;margin-top:6px;min-height:0"></div></div></div>
       <div class="cap">Głos robocika</div>
@@ -693,7 +696,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     $('wifiNow').textContent = dev && online && dev.wifi_ssid ? dev.wifi_ssid : '—';
     $('wifiSaved').textContent = dev && dev.wifi_saved ? 'zapamiętane: ' + dev.wifi_saved.split('\n').filter(Boolean).join(', ') : '';
     $('btInfo').textContent = dev && online && dev.bt_info ? dev.bt_info : '';
-    if (!$('v-set').hidden) renderVc();
+    if (!$('v-set').hidden) { renderVc(); renderWh(); }
   }
   setInterval(renderStatus, 5000);
 
@@ -1051,7 +1054,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   // ---- menu funkcji ----
   const APP_RING = 176, APP_R = 46, C_HEART = 'rgb(255,92,122)';
   const appItems = () => {                        // jak w ESP: siedem funkcji na okręgu (od góry), w środku robocik i ustawienia
-    const out = ['chat', 'alarm', 'dice', 'level', 'pad', 'heart', 'torch'].map((n, i) => { const a = (-90 + 360 / 7 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), n !== 'chat' || !!sim.msg, APP_R]; });
+    const out = ['chat', 'alarm', 'dice', 'pad', 'heart', 'torch'].map((n, i) => { const a = (-90 + 360 / 6 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), n !== 'chat' || !!sim.msg, APP_R]; });
     out.push(['robot', 233, 181, true, 54], ['gear', 233, 297, true, 40]); return out;
   };
   function drawApps(X) {
@@ -1266,6 +1269,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
   function drawSettings(X) {
     const st = simSet(), br = setBr(), vol = setVol();
+    drawTextC(X, 'F_SMALL', 233, 46, (dev && dev.fw_version) || '', 'rgb(78,78,78)');
+    rrectS(X, 233, 452, 22, 1.5, 1.5, 'rgb(72,72,72)');
     drawSlider(X, true, (br - 5) / 95, st.drag === 1); drawSlider(X, false, vol / 100, st.drag === 2);
     if (st.drag) {
       const n = st.drag === 1 ? 'suns' : 'spks', I = ic(n), dh = digitH();
@@ -1419,19 +1424,12 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
   function drawRobot(X) {
     const r = simRb(), t = now(), w = warsaw(), sleepy = w.h >= 22 || w.h < 6, morning = w.h >= 6 && w.h < 9;
-    const hasLamp = !!cfgv('lamp_id', ''), lampOn = dev && dev.light_on === true;
-    let lum = 1, arm = 0, swOn = r.scene === 1 ? r.on : lampOn;
-    if (r.scene === 1) {
-      const e = t - r.t0;
-      if (!r.on) { arm = easeIO(e / 350); swOn = e < 350; lum = e < 350 ? 1 : e < 470 ? 1 - (e - 350) / 120 : e < 2300 ? 0 : Math.min(1, (e - 2300) / 500) * .55; if (e > 2300) arm = 0; }
-      else { swOn = e >= 400; lum = e < 400 ? 0 : Math.min(1, (e - 400) / 420); arm = e < 900 ? 1 : 1 - easeIO((e - 900) / 420); }
-    }
-    if (hasLamp) { const f = r.scene === 1 ? lum : .9; rrectS(X, RB_SW_X, RB_SW_Y, 26, 42, 10, rgbf([44, 44, 44], f)); rrectS(X, RB_SW_X, RB_SW_Y + (swOn ? -14 : 14), 15, 18, 7, rgbf(swOn ? [243, 243, 243] : [110, 110, 110], f)); }
+    const lum = 1;
     let open = t - r.blink < 170 ? Math.abs((t - r.blink) / 85 - 1) : 1;
     if (morning && t - r.opened < 2600) open = Math.min(open, .15 + .85 * easeIO((t - r.opened) / 2600));
     const yawn = sleepy && r.yawn && t - r.yawn < 1900, happy = r.happy > t;
     const lid = sleepy ? .42 : 1, cy = 222 + (sleepy ? 18 : 0), dx = r.look * 24;
-    let eyeLum = lum; if (r.scene === 1 && !r.on && t - r.t0 > 2300) eyeLum = Math.min(1, (t - r.t0 - 2300) / 500);
+    const eyeLum = lum;
     const ce = rgbf(C_EYE, eyeLum);
     if (eyeLum > .01) for (const sd of [-1, 1]) {
       const cx = 233 + sd * 72 + dx;
@@ -1441,7 +1439,6 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     }
     if (yawn) { const k = Math.sin(Math.PI * Math.min(1, (t - r.yawn) / 1900)); rrectS(X, 233 + dx * .5, 330, 18 + 10 * k, 4 + 30 * k, 18, rgbf(C_EYE, .8)); }
     if (sleepy && !yawn && !r.scene) { const ph = (T(t / 40) % 100) / 100; drawText(X, 'F_SMALL', 318 + T(ph * 22), 150 - T(ph * 46), 'z', rgbf([140, 140, 140], 1 - ph)); drawText(X, 'F_BODY', 336 + T(ph * 24), 128 - T(ph * 50), 'Z', rgbf([140, 140, 140], 1 - ph * .8)); }
-    if (r.scene === 1) rbArm(X, RB_SW_X - 6, RB_SW_Y + (swOn ? -14 : 14), arm, lum);
   }
   function robotStep(n) {
     const r = simRb(), w = warsaw(), sleepy = w.h >= 22 || w.h < 6;
@@ -1454,7 +1451,6 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
   function robotTapSim(x, y) {
     const r = simRb(); if (r.scene) return;
-    if (cfgv('lamp_id', '') && Math.abs(x - RB_SW_X) < 44 && Math.abs(y - RB_SW_Y) < 62) { r.scene = 1; r.t0 = now(); r.on = !(dev && dev.light_on === true); return; }
     r.happy = now() + 1400;
   }
   function edLayout() {
@@ -1518,7 +1514,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
   function coinFlipSim() { const c = simCoin(); if (c.state === 1) return; c.from = c.side; c.side = Math.random() < .5 ? 0 : 1; c.spins = 6 + (c.from ^ c.side); c.state = 1; c.t0 = now(); c.local = true; sim.dirty = true; kick(); }
   function coinStep(n) { const c = simCoin(); if (c.state === 1) { sim.dirty = true; if (n - c.t0 >= COIN_MS && c.local) { c.state = 0; c.flips++; c.local = false; } } }
-  const WH_CY = 250, WH_R = 172, WH_HUB = 34, WH_COL = ['rgb(64,120,172)', 'rgb(198,104,76)', 'rgb(84,152,100)', 'rgb(186,150,58)', 'rgb(132,92,164)', 'rgb(66,142,150)'];
+  const WH_CY = 238, WH_R = 164, WH_HUB = 30, WH_EDIT_Y = 430, WH_COL = ['rgb(64,120,172)', 'rgb(198,104,76)', 'rgb(84,152,100)', 'rgb(186,150,58)', 'rgb(132,92,164)', 'rgb(66,142,150)'];
   const whColor = (i, n) => { let k = i % 6; if (n > 1 && i === n - 1 && k === 0) k = 2; return WH_COL[k]; };
   const simWheel = () => sim.wheel || (sim.wheel = { e: [], ang: 0, state: 0, res: -1, resUntil: 0, from: 0, total: 0, t0: 0, dur: 0 });
   function drawWheel(X) {
@@ -1533,10 +1529,11 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
         const t = fitT('F_SMALL', w.e[i], WH_R - WH_HUB - 30), tW = tw('F_SMALL', t), mid = (i + .5) * segA + w.ang - Math.PI / 2;
         X.save(); X.translate(233, WH_CY); X.rotate(mid); drawText(X, 'F_SMALL', WH_R - 16 - tW, 9, t, 'rgb(250,250,250)'); X.restore();
       }
-    } else { ring2(X, 233, WH_CY, WH_R, C.line); drawTextC(X, 'F_SMALL', 233, WH_CY + 84, 'dodaj pola do losowania', C.muted); }
+    } else { ring2(X, 233, WH_CY, WH_R, C.line); drawTextC(X, 'F_SMALL', 233, WH_CY + 8, n ? 'potrzebne co najmniej 2 pola' : 'najpierw dodaj pola', C.muted); }
     rrect(X, 233, WH_CY - WH_R - 4, 13, 3, Math.PI / 4, C.ink);
     if (w.res >= 0 && w.res < n && now() < w.resUntil) { rrectS(X, 233, WH_CY, 156, 32, 32, 'rgb(14,14,14)'); drawTextC(X, 'F_BODY', 233, WH_CY + 11, fitT('F_BODY', w.e[w.res], 290), C.ink); }
-    else { disc(X, 233, WH_CY, WH_HUB, 'rgb(18,18,18)'); ring2(X, 233, WH_CY, WH_HUB, C.line); const P = ic('plus'); if (w.state === 0 && n < 12 && P) drawIcon(X, 'plus', 233 - T(P.width / 2), WH_CY - T(P.height / 2), C.muted); }
+    else if (n >= 2) { disc(X, 233, WH_CY, WH_HUB, 'rgb(18,18,18)'); ring2(X, 233, WH_CY, WH_HUB, C.line); }
+    if (w.state === 0) { rrectS(X, 233, WH_EDIT_Y, 48, 20, 20, 'rgb(36,36,36)'); drawTextC(X, 'F_SMALL', 233, WH_EDIT_Y + 8, 'pola', C.ink); }
   }
   function wheelTapSim(x, y) {
     const w = simWheel(), n = w.e.length; if (w.state === 1) return;
@@ -1549,6 +1546,20 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     const v = ((sim.torch ?? 50) - 5) / 95, a0 = arcAng(false, 0), a1 = arcAng(false, 1), av = arcAng(false, v);
     arcStroke(X, a0, a1, 'rgb(200,200,200)'); if (v > .004) arcStroke(X, a0, av, 'rgb(70,70,70)');
     disc(X, 233 + Math.cos(av) * ARC_R, 233 + Math.sin(av) * ARC_R, 11, 'rgb(40,40,40)');
+  }
+  // ---- koło: lista pól (jak na ESP) ----
+  function drawWheelEdit(X) {
+    const e = simWheel().e, rows = e.length + (e.length < 12 ? 1 : 0), sc = sim.weScroll || 0;
+    for (let i = 0; i < rows; i++) {
+      const cy = 124 + i * 56 - sc; if (cy < 86 || cy > 420) continue;
+      const half = Math.min(190, Math.sqrt(Math.max(0, 222 * 222 - (cy - 233) ** 2))), xl = 233 - half, xr = 233 + half, add = i === e.length;
+      rrectS(X, 233, cy, half, 22, 22, add ? 'rgb(26,52,38)' : 'rgb(30,30,30)');
+      if (add) { const P = ic('plus'); if (P) drawIcon(X, 'plus', 153 - T(P.width / 2), T(cy) - T(P.height / 2), C.green); drawText(X, 'F_SMALL', 187, T(cy) + 8, 'dodaj pole', C.green); continue; }
+      rrectS(X, xl + 18, cy, 9, 9, 9, whColor(i, e.length)); drawText(X, 'F_SMALL', T(xl) + 36, T(cy) + 8, fitT('F_SMALL', e[i], xr - xl - 90), C.ink);
+      const Tr = ic('trashs'); if (Tr) drawIcon(X, 'trashs', T(xr) - 34 - T(Tr.width / 2), T(cy) - T(Tr.height / 2), C.muted);
+    }
+    X.fillStyle = '#000'; X.fillRect(0, 0, 466, 74); X.fillRect(0, 434, 466, 32);
+    drawTextC(X, 'F_SMALL', 233, 70, `pola koła · ${e.length}/12`, C.muted);
   }
   function torchTapSim(x, y) { if (x > 336 && Math.abs(y - 233) < 185) { sim.torch = 5 + Math.round(Math.max(0, Math.min(1, (ARC_Y1 - y) / (ARC_Y1 - ARC_Y0))) * 95); sim.dirty = true; kick(); } }
   // ---- labirynt: ten sam labirynt co na ESP (to samo ziarno i ten sam los) ----
@@ -1663,6 +1674,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if (['alarms', 'timer', 'games', 'level', 'robot', 'torch'].includes(s)) return 'apps';
     if (s === 'aedit') return 'alarms';
     if (['dice', 'wheel', 'coin', 'poker', 'maze'].includes(s)) return 'games';
+    if (s === 'wheeled') return 'wheel';
     if (s === 'wifi' || s === 'bt') return 'set';
     if (s === 'portal') return 'wifi';
     if (s === 'heart') return sim.heartPrev || 'home';
@@ -1731,6 +1743,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (s === 'coin') { const c = simCoin(), st = +parts[1] || 0, sd = +parts[2] || 0, fl = +parts[3] || 0;
         if (st === 1 && c.state !== 1) { c.from = c.side; c.side = sd; c.spins = 6 + (c.from ^ sd); c.state = 1; c.t0 = now(); c.local = false; sim.dirty = true; }
         if (st === 0 && (c.state !== 0 || c.side !== sd || c.flips !== fl) && !(c.state === 1 && now() - c.t0 < COIN_MS)) { c.state = 0; c.side = sd; c.flips = fl; sim.dirty = true; } }
+      if (s === 'wheeled') { const sc = +parts[1] || 0; const e = String(dev.wheel_items || '').split('\n').filter(Boolean); const w = simWheel(); if (sc !== sim.weScroll || e.join('|') !== w.e.join('|')) { sim.weScroll = sc; w.e = e; sim.dirty = true; } }
       if (s === 'torch') { const lv = +parts[1] || 50; if (lv !== sim.torch) { sim.torch = lv; sim.dirty = true; } }
       if (s === 'maze') { const mz = { seed: +parts[1] >>> 0, n: +parts[2] || 7, level: +parts[3] || 1, state: +parts[4] || 0, time: +parts[5] || 0 }; if (JSON.stringify(mz) !== JSON.stringify(sim.mz)) { sim.mz = mz; sim.dirty = true; } }
       if (s === 'poker') { const pk = pkParse(String(dev.screen)); if (pk && JSON.stringify(pk) !== JSON.stringify(sim.pk)) { sim.pk = pk; sim.dirty = true; } }
@@ -1738,7 +1751,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
         if (e.join('|') !== w.e.join('|')) { w.e = e; sim.dirty = true; }
         if (st === 1 && w.state !== 1) { w.state = 1; w.dur = 0; w.local = false; sim.dirty = true; }
         if (st === 0 && (w.state === 1 || Math.abs(w.ang - ang) > .001 || w.res !== res)) { w.state = 0; w.ang = ang; w.res = res; w.resUntil = res >= 0 ? now() + 4000 : 0; sim.dirty = true; } } }
-    if (!['stby', 'home', 'apps', 'msg', 'alarm', 'alarms', 'aedit', 'pad', 'timer', 'tdone', 'dice', 'level', 'heart', 'set', 'wifi', 'kb', 'portal', 'bt', 'robot', 'wakeend', 'games', 'wheel', 'coin', 'poker', 'maze', 'torch'].includes(s)) return;
+    if (!['stby', 'home', 'apps', 'msg', 'alarm', 'alarms', 'aedit', 'pad', 'timer', 'tdone', 'dice', 'level', 'heart', 'set', 'wifi', 'kb', 'portal', 'bt', 'robot', 'wakeend', 'games', 'wheel', 'coin', 'poker', 'maze', 'torch', 'wheeled'].includes(s)) return;
     if (s !== sim.scr) { sim.scr = s; sim.shownAt = now(); sim.vel = 0; if (s === 'msg') sim.scrollY = sc || 0; sim.dirty = true; }
     else if (s === 'msg' && sc != null && !tp.down && Math.abs(sim.vel) <= 8 && Math.abs(sc - sim.scrollY) > 1) { sim.scrollY = sc; sim.dirty = true; }
     if (pos !== sim.pos) { sim.pos = pos; sim.dirty = true; }
@@ -1820,6 +1833,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     else if (sim.scr === 'poker') drawPoker(X);
     else if (sim.scr === 'maze') drawMaze(X);
     else if (sim.scr === 'torch') drawTorch(X);
+    else if (sim.scr === 'wheeled') drawWheelEdit(X);
     else drawStandby(X, sim.pos, upcoming(1)[0] || null, hasUnread(), wakeActive() ? sim.wkNext : null);
     if (sim.scr !== 'msg' && backOfSim(sim.scr)) rrectS(X, 6, 233, 1.5, 22, 1.5, sim.scr === 'torch' ? 'rgb(40,40,40)' : 'rgb(72,72,72)');   // kreska: gest wstecz
   }
@@ -1894,6 +1908,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if (sim.scr === 'games') { GM_ICONS.forEach((n, i) => { const [cx, cy] = gmPos(i); if ((x - cx) ** 2 + (y - cy) ** 2 < (GM_R + 8) ** 2) simGo(GM_SCR[i]); }); return; }
     if (sim.scr === 'maze') { if (!sim.live) toast('Labirynt: przechylaj ESP'); return; }
     if (sim.scr === 'torch') return torchTapSim(x, y);
+    if (sim.scr === 'wheeled') { if (!sim.live) toast('Pola zmienisz w Ustawieniach → Koło fortuny'); return; }
     if (sim.scr === 'poker') { if (!sim.live) toast('Poker gra się na ESP — włącz podgląd na żywo'); return; }
     if (sim.scr === 'coin') { if (!sim.live) coinFlipSim(); return; }
     if (sim.scr === 'wheel') return wheelTapSim(x, y);
@@ -2105,10 +2120,10 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (c.volume != null) { $('vol').value = c.volume; $('volV').textContent = c.volume + '%'; }
       $('sleepSw').checked = c.sleep_min > 0; $('battSw').checked = c.battery_protect; $('fastSw').checked = c.fast_display !== false;
       $('alarmLightSw').checked = c.alarm_light !== false; ntfyTopic = c.ntfy_topic || ''; renderNtfy();
-      $('quietSw').checked = !!c.quiet_night; $('battChk').value = String(c.battery_check_min ?? 15); $('saverSw').checked = c.battery_saver !== false;
+      $('quietSw').checked = !!c.quiet_night; $('battChk').value = String(c.battery_check_min ?? 15); $('saverSw').checked = c.battery_saver === true;
     } catch (e) { console.warn(e); }
     $('iosAlSw').checked = !!store.get('esp.iosAlarm'); $('iosAlHint').hidden = !$('iosAlSw').checked;
-    loadBatt(); loadVc();
+    loadBatt(); loadVc(); renderWh();
   }
   $('saverSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { battery_saver: $('saverSw').checked, updated_at: new Date().toISOString() })
     .then(() => toast($('saverSw').checked ? 'Tryb baterii włączony' : 'Tryb baterii wyłączony — ESP nie będzie usypiać')).catch(() => toast('Nie zapisano — uruchom 12_bateria.sql w Supabase')));
@@ -2116,6 +2131,22 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     .then(() => toast(+$('battChk').value ? 'Na baterii: sprawdzanie ' + $('battChk').selectedOptions[0].text : 'Na baterii: bez sprawdzania (najmniej prądu)')).catch(() => toast('Nie zapisano — uruchom 11_glos.sql w Supabase')));
   $('quietSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { quiet_night: $('quietSw').checked, updated_at: new Date().toISOString() })
     .then(() => toast($('quietSw').checked ? 'Cisza nocna włączona' : 'Cisza nocna wyłączona')).catch(() => toast('Nie zapisano — uruchom 11_glos.sql w Supabase')));
+  // ---- koło fortuny: pola wpisywane w telefonie (ESP dostaje całą listę) ----
+  let whLocal = null, whLocalUntil = 0;
+  const whItems = () => whLocal && Date.now() < whLocalUntil ? whLocal : String((dev && dev.wheel_items) || '').split('\n').filter(Boolean);
+  function renderWh() {
+    const items = whItems(), box = $('whList'), html = items.length ? items.map((t, i) => `<div class="row"><span style="width:10px;height:10px;border-radius:50%;flex:none;background:${whColor(i, items.length)}"></span><div class="lbl">${esc(t)}</div><button class="sbtn" type="button" data-wdel="${i}" aria-label="Usuń pole"><svg class="i"><use href="#i-trash"/></svg></button></div>`).join('') : '<div class="row"><div class="lbl" style="color:var(--muted)">Brak pól — dodaj co najmniej dwa</div></div>';
+    if (box.dataset.html === html) return; box.innerHTML = html; box.dataset.html = html;
+    box.querySelectorAll('[data-wdel]').forEach(b => b.onclick = () => whSend(items.filter((_, i) => i !== +b.dataset.wdel)));
+  }
+  async function whSend(items) {
+    whLocal = items; whLocalUntil = Date.now() + 8000; renderWh();
+    try { await req('/rest/v1/commands', { method: 'POST', body: { kind: 'wheel', payload: { items, t: Math.floor(Date.now() / 1000) } }, headers: { Prefer: 'return=minimal' } }); if (!isOnline()) toast('ESP offline — pola dojdą, gdy wróci'); setTimeout(poll, 1500); }
+    catch (e) { whLocal = null; renderWh(); toast('Nie wysłano — uruchom 13_kolo.sql w Supabase'); }
+  }
+  const whAddNow = () => { const t = $('whNew').value.trim(); if (!t) return; const items = whItems(); if (items.length >= 12) return toast('Najwyżej 12 pól'); $('whNew').value = ''; whSend(items.concat([t.slice(0, 40)])); };
+  $('whAdd').addEventListener('click', whAddNow);
+  $('whNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); whAddNow(); } });
   // ---- bateria: wykres z ostatnich 48 h i spadek na godzinę ----
   async function loadBatt() {
     try {
