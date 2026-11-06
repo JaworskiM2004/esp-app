@@ -554,7 +554,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
 
   /* ===================== login ===================== */
-  const APP_VERSION = 'a1.18';
+  const APP_VERSION = 'a1.19';
   $('appVer').textContent = 'app ' + APP_VERSION;
   function showApp(on) {
     $('login').hidden = on; $('app').hidden = !on;
@@ -2215,6 +2215,17 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   let tick = 0;   // every 3 s; every 1 s while the preview is visible
   setInterval(() => { tick++; if (sess && document.visibilityState === 'visible' && (tick % 3 === 0 || previewOn() || !$('v-timer').hidden || lampWait)) poll(); }, 1000);   // preview: every 1 s, otherwise every 3 s
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') poll(); });
+  // Samoaktualizacja aplikacji z ekranu głównego (iOS nie odświeża jej sam): po powrocie do aplikacji
+  // pobieramy index.html bez pamięci podręcznej i jeśli wersja jest inna, przeładowujemy.
+  async function checkAppUpdate() {
+    try {
+      const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
+      const m = /const APP_VERSION = '([^']+)'/.exec(await r.text());
+      if (m && m[1] !== APP_VERSION) location.reload();
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkAppUpdate(); });
+  setTimeout(checkAppUpdate, 3000);
 
   /* ===================== settings ===================== */
   let cfgT;
