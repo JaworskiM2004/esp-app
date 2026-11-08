@@ -568,7 +568,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
 
   /* ===================== login ===================== */
-  const APP_VERSION = 'a1.20';
+  const APP_VERSION = 'a1.21';
   $('appVer').textContent = 'app ' + APP_VERSION;
   function showApp(on) {
     $('login').hidden = on; $('app').hidden = !on;
@@ -1095,9 +1095,9 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     drawTextC(X, 'F_BODY', 233, 237, 'zakończ', C.ink); drawTextC(X, 'F_BODY', 233, 277, 'pobudkę', C.ink);
   }
   // ---- feature menu ----
-  const APP_RING = 176, APP_R = 46, C_HEART = 'rgb(255,92,122)';
-  const appItems = () => {                        // as in the ESP: four features on a circle (from the top), settings in the middle; torch = hold the bottom button
-    const out = ['chat', 'alarm', 'dice', 'pad'].map((n, i) => { const a = (-90 + 90 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), true, APP_R]; });
+  const APP_RING = 158, APP_R = 46, C_HEART = 'rgb(255,92,122)';
+  const appItems = () => {                        // as in the ESP: four features on the diagonals (chat top-left, clockwise), settings in the middle; torch = hold the bottom button
+    const out = ['chat', 'alarm', 'dice', 'pad'].map((n, i) => { const a = (-135 + 90 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), true, APP_R]; });
     out.push(['gear', 233, 233, true, 46]); return out;
   };
   function drawApps(X) {
