@@ -193,6 +193,18 @@ textarea:focus{border-color:var(--line-3);outline:none}
   transform:translate(-50%,-50%) rotate(var(--a)) translateX(calc(var(--R) + 3px))}
 .device .hw#hwTop{--a:-27deg}
 .device .hw#hwBot{--a:27deg}
+.sgbox{margin:18px 4px 6px}
+.sgcap{font-size:13px;color:#8a8a8a;margin:0 4px 8px;letter-spacing:.02em}
+.sgrow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:14px;background:#141416;margin-bottom:6px;cursor:pointer;transition:transform .15s,background .15s}
+.sgrow:active{transform:scale(.985);background:#1b1b1e}
+.sgth{width:46px;height:46px;border-radius:50%;flex:none;background:#222 center/cover no-repeat;display:grid;place-items:center}
+.sgth .i{width:20px;height:20px;stroke:#888}
+.sgt{flex:1;min-width:0;font-size:14px;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sgt small{display:block;font-size:12px;color:#777;margin-top:2px}
+.sgt small b{color:#5fd38d;font-weight:500}
+.sgdel{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:#1f1f22;display:grid;place-items:center}
+.sgdel .i{width:18px;height:18px;stroke:#ff7b6e}
+.sghint{font-size:12px;color:#666;margin:8px 6px 0;line-height:1.4}
 .device .hw::before{content:"";width:9px;height:100%;margin-left:12px;border-radius:0 6px 6px 0;background:linear-gradient(90deg,#5d6064,#d2d4d7 70%,#9a9da1);box-shadow:0 0 0 1px #262626;transition:transform .08s}
 .device .hw:active::before{transform:translateX(-3px);background:linear-gradient(90deg,#4f5256,#aeb0b3 70%,#86898d)}
 .device .spk{position:absolute;right:2.2%;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;z-index:1}
@@ -362,7 +374,12 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
         <div class="mini" id="onMini"></div>
         <div class="lbl"><span id="onTxt"></span></div><span class="steps" id="onSteps" aria-label="Status"><i></i><i></i><i></i></span>
         <button class="sbtn" id="editOn" type="button" aria-label="Edit"><svg class="i"><use href="#i-edit"/></svg></button>
-        <button class="sbtn" id="clearOn" type="button" aria-label="Clear"><svg class="i"><use href="#i-off"/></svg></button>
+        <button class="sbtn" id="clearOn" type="button" aria-label="Delete from the ESP"><svg class="i"><use href="#i-trash"/></svg></button>
+      </div>
+      <div class="sgbox">
+        <div class="sgcap">Cheat sheet on the ESP <span id="sgCount"></span></div>
+        <div id="sgList"></div>
+        <div class="sghint">Everything you send stays on the ESP until you delete it. On the ESP: swipe sideways to browse, hold to delete. Tap a row here to show it on the ESP.</div>
       </div>
     </section>
 
@@ -442,9 +459,6 @@ select.field{color:var(--ink);background:var(--bg);-webkit-appearance:none;appea
       </div>
       <div class="hint" style="text-align:left">Add a new network on the ESP: Settings → Wi-Fi (pick from the list and use the keyboard, or "from phone"). Passwords stay on the ESP only.</div>
       <div class="hint" id="iosAlHint" style="text-align:left" hidden>Create a shortcut once: Shortcuts → + → action "Create Alarm", time = "Shortcut Input", shortcut name: <b>ESP budzik</b>. After that every new ESP alarm opens this shortcut with the time.</div>
-      <div class="cap">Wheel of fortune</div>
-      <div class="rows" id="whList"></div>
-      <div class="aladd" style="margin-top:2px"><input type="text" id="whNew" maxlength="40" placeholder="New field, e.g. pizza" aria-label="New wheel of fortune field" enterkeyhint="done"><button class="sbtn" id="whAdd" type="button" aria-label="Add field"><svg class="i"><use href="#i-plus"/></svg></button></div>
       <div class="cap">Battery</div>
       <div class="rows"><div class="row" style="display:block"><canvas id="battCv" width="640" height="180" style="width:100%;height:90px;display:block" aria-label="Battery over the last 48 hours"></canvas><div class="hint" id="battInfo" style="text-align:left;margin-top:6px;min-height:0"></div></div></div>
       <div class="cap">Firmware</div>
@@ -554,7 +568,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
 
   /* ===================== login ===================== */
-  const APP_VERSION = 'a1.19';
+  const APP_VERSION = 'a1.20';
   $('appVer').textContent = 'app ' + APP_VERSION;
   function showApp(on) {
     $('login').hidden = on; $('app').hidden = !on;
@@ -841,11 +855,10 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
         photo_path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.jpg`;
         await upload('photos', photo_path, blob);
       }
-      await db.patch('messages', 'status=in.(sent,shown)', { status: 'cleared' });
       await db.insert('messages', { body: draft.text || null, photo_path, photo_first: draft.order === 'photo-first' });
       toast('Sent to ESP');
       $('msgText').value = ''; growText(); draft.photo = null; draft.order = 'photo-first';
-      await poll();
+      await poll(); loadSg(true);
     } catch (err) {
       console.error(err); toast(err.auth ? 'Please log in again' : 'Sending failed');
     } finally { sending = false; $('sendBtn').classList.remove('busy'); renderEditor(true); }
@@ -870,7 +883,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     const n = last ? STEP[last.status] : 0;
     [...$('onSteps').children].forEach((i, k) => { i.className = k < n ? (n === 3 ? 'read' : 'on') : ''; });
     $('onSteps').hidden = !last || last.status === 'cleared';
-    $('editOn').disabled = !last; $('clearOn').disabled = !lastView;
+    $('editOn').disabled = !last; $('clearOn').disabled = !last || last.status === 'cleared';
   }
   $('editOn').addEventListener('click', async () => {
     if (!last) return;
@@ -881,9 +894,42 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   });
   $('clearOn').addEventListener('click', async () => {
     if (!last) return;
-    try { await db.patch('messages', `id=eq.${last.id}`, { status: 'cleared' }); toast('ESP screen cleared'); await poll(); }
+    if (!confirm('Delete this from the ESP cheat sheet?')) return;
+    try { await sgDelete(last.id); toast('Deleted from the ESP'); await poll(); }
     catch (e) { toast('Something went wrong'); }
   });
+  /* ===================== cheat sheet: everything that stays on the ESP ===================== */
+  let sgItems = [], sgAt = 0;
+  const sgWhen = iso => { const d = new Date(iso), t = d.toLocaleTimeString('pl-PL', { timeZone: 'Europe/Warsaw', hour: '2-digit', minute: '2-digit' }), day = d.toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw', day: 'numeric', month: 'numeric' }), today = new Date().toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw', day: 'numeric', month: 'numeric' }); return (day === today ? 'today' : day) + ' · ' + t; };
+  async function sgDelete(id) {
+    await db.patch('messages', `id=eq.${id}`, { status: 'cleared' });
+    sgItems = sgItems.filter(m => m.id !== id); renderSg();
+    req('/rest/v1/commands', { method: 'POST', body: { kind: 'input', payload: { k: 'sync', t: Math.floor(Date.now() / 1000) } }, headers: { Prefer: 'return=minimal' } }).catch(() => {});   // ESP odświeża spis od razu
+  }
+  async function loadSg(force) {
+    if (!sess || (!force && Date.now() - sgAt < 8000)) return;
+    sgAt = Date.now();
+    try { sgItems = await db.get('messages', 'select=id,created_at,body,photo_path,photo_first,status&status=neq.cleared&order=created_at.desc&limit=60'); renderSg(); }
+    catch (e) { console.warn(e); }
+  }
+  function renderSg() {
+    const box = $('sgList'); if (!box) return;
+    $('sgCount').textContent = sgItems.length ? '· ' + sgItems.length : '';
+    const key = sgItems.map(m => m.id + m.status).join('|'); if (box.dataset.key === key) return; box.dataset.key = key;
+    box.innerHTML = sgItems.length ? '' : '<div class="sghint">Nothing yet — what you send appears here.</div>';
+    for (const m of sgItems) {
+      const row = document.createElement('div'); row.className = 'sgrow';
+      const th = document.createElement('div'); th.className = 'sgth';
+      if (m.photo_path) fileURL('photos', m.photo_path).then(u => { th.style.backgroundImage = `url("${u}")`; }).catch(() => {});
+      else th.innerHTML = '<svg class="i"><use href="#i-chat"/></svg>';
+      const t = document.createElement('div'); t.className = 'sgt';
+      t.innerHTML = esc((m.body || '').split('\n')[0] || (m.photo_path ? 'Photo' : '')) + `<small>${sgWhen(m.created_at)}${m.status === 'read' ? '' : ' · <b>new</b>'}</small>`;
+      const del = document.createElement('button'); del.className = 'sgdel'; del.type = 'button'; del.setAttribute('aria-label', 'Delete from the ESP'); del.innerHTML = '<svg class="i"><use href="#i-trash"/></svg>';
+      del.addEventListener('click', async ev => { ev.stopPropagation(); if (!confirm('Delete this from the ESP cheat sheet?')) return; try { await sgDelete(m.id); toast('Deleted from the ESP'); poll(); } catch (e) { toast('Something went wrong'); } });
+      row.addEventListener('click', () => { req('/rest/v1/commands', { method: 'POST', body: { kind: 'input', payload: { k: 'show', id: m.id, t: Math.floor(Date.now() / 1000) } }, headers: { Prefer: 'return=minimal' } }).then(() => toast('Shown on the ESP')).catch(() => toast('Did not reach the ESP')); });
+      row.append(th, t, del); box.append(row);
+    }
+  }
   /* ===================== preview = ESP simulator =====================
      Same fonts and icons as the device (pixel for pixel, 466×466), the same screens
      and the same touch and button logic as the ESP firmware.
@@ -1050,14 +1096,16 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   }
   // ---- feature menu ----
   const APP_RING = 176, APP_R = 46, C_HEART = 'rgb(255,92,122)';
-  const appItems = () => {                        // as in the ESP: five features on a circle (from the top), settings in the middle
-    const out = ['chat', 'alarm', 'dice', 'pad', 'torch'].map((n, i) => { const a = (-90 + 360 / 5 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), n !== 'chat' || !!sim.msg, APP_R]; });
+  const appItems = () => {                        // as in the ESP: four features on a circle (from the top), settings in the middle; torch = hold the bottom button
+    const out = ['chat', 'alarm', 'dice', 'pad'].map((n, i) => { const a = (-90 + 90 * i) * Math.PI / 180; return [n, Math.round(233 + Math.cos(a) * APP_RING), Math.round(233 + Math.sin(a) * APP_RING), true, APP_R]; });
     out.push(['gear', 233, 233, true, 46]); return out;
   };
   function drawApps(X) {
     for (const [n, cx, cy, on, r] of appItems()) {
+      disc(X, cx, cy, r, 'rgb(14,14,15)');
       X.beginPath(); X.arc(cx, cy, r, 0, Math.PI * 2); X.lineWidth = 1.6; X.strokeStyle = on ? C.line : C.line0; X.stroke();
-      const I = ic(n); if (I) drawIcon(X, n, cx - T(I.width / 2), cy - T(I.height / 2), !on ? C.dim : n === 'heart' ? C_HEART : C.ink);
+      const I = ic(n); if (I) drawIcon(X, n, cx - T(I.width / 2), cy - T(I.height / 2), !on ? C.dim : C.ink);
+      if (n === 'chat' && hasUnread()) { disc(X, cx + 31, cy - 31, 9, '#000'); disc(X, cx + 31, cy - 31, 6.5, C.green); }
     }
   }
   // ---- alarms: list and editing (same positions as on the ESP) ----
@@ -1435,95 +1483,33 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     drawIcon(X, 'check', 233 + ED_BTN_DX - T(K.width / 2), ED_BTN_Y - T(K.height / 2), C.green);
   }
   // ---- games: picker, coin flip, wheel of fortune (as on the ESP) ----
-  const GM_RING = 150, GM_R = 47, GM_ICONS = ['maze', 'car', 'sudoku', 'chk', 'wordle', 'lol', 'coin', 'wheel', 'dice'], GM_SCR = ['maze', 'car', 'sudoku', 'chk', 'wordle', 'lol', 'coin', 'wheel', 'dice'];
-  const gmPos = i => { if (i === 8) return [233, 233]; const a = (-90 + 45 * i) * Math.PI / 180; return [Math.round(233 + Math.cos(a) * GM_RING), Math.round(233 + Math.sin(a) * GM_RING)]; };
+  const GM_R = 80, GM_ICONS = ['maze', 'car'], GM_SCR = ['maze', 'car'], GM_NAMES = ['labirynt', 'wyścig'];
+  const gmPos = i => [233 + (i ? 102 : -102), 224];
   function drawGames(X) {
+    drawTextC(X, 'F_SMALL', 233, 104, 'gry', C.muted);
     GM_ICONS.forEach((n, i) => {
-      const [cx, cy] = gmPos(i), on = true, I = ic(n);
-      ring2(X, cx, cy, i === 8 ? GM_R + 8 : GM_R, on ? C.line : C.line0);
-      if (I) drawIcon(X, n, cx - T(I.width / 2), cy - T(I.height / 2), on ? C.ink : C.dim);
+      const [cx, cy] = gmPos(i), I = ic(n);
+      disc(X, cx, cy, GM_R, 'rgb(17,17,19)'); ring2(X, cx, cy, GM_R, C.line);
+      if (I) drawIcon(X, n, cx - T(I.width / 2), cy - T(I.height / 2), C.ink);
+      drawTextC(X, 'F_SMALL', cx, cy + GM_R + 36, GM_NAMES[i], C.ink);
+      const sub = i === 0 ? (sim.mz ? `etap ${sim.mz.level}/12` : '') : (sim.carBest ? `rekord ${sim.carBest}` : '');
+      if (sub) drawTextC(X, 'F_TINY', cx, cy + GM_R + 60, sub, C.muted);
     });
   }
-  const C_GOLD = 'rgb(222,178,84)', C_GOLDB = 'rgb(200,156,70)', C_GOLD3 = 'rgb(112,82,28)', COIN_MS = 1700, COIN_R = 118;
-  const simCoin = () => sim.coin || (sim.coin = { state: 0, side: 0, from: 0, spins: 6, flips: 0, t0: 0 });
-  function ellipseF(X, cx, cy, rx, ry, col) { X.beginPath(); X.ellipse(cx, cy, Math.max(.5, rx), Math.max(.5, ry), 0, 0, Math.PI * 2); X.fillStyle = col; X.fill(); }
-  function drawCoin(X) {
-    const c = simCoin(), t = now() - c.t0;
-    if (c.state === 1 && t < COIN_MS) {
-      const p = t / COIN_MS, e = 1 - (1 - p) * (1 - p), th = e * c.spins * Math.PI, sc = 1 + .34 * Math.sin(Math.PI * p), rx = COIN_R * sc, ry = rx * Math.abs(Math.cos(th));
-      const face = c.from ^ (Math.floor((th + Math.PI / 2) / Math.PI) & 1), cy = 219 - 30 * Math.sin(Math.PI * p);
-      ellipseF(X, 233, cy + 3, rx + 3, ry + 4, C_GOLD3); ellipseF(X, 233, cy, rx, ry, face ? C_GOLDB : C_GOLD);
-      if (ry > 20) ellipseF(X, 233, cy, rx * .86, ry * .86, face ? 'rgb(190,146,62)' : 'rgb(210,166,76)');
-      sim.dirty = true; return;
-    }
-    const side = c.side, cy = 219;
-    disc(X, 233, cy, COIN_R + 4, C_GOLD3); disc(X, 233, cy, COIN_R, side ? C_GOLDB : C_GOLD);
-    X.beginPath(); X.arc(233, cy, COIN_R - 14, 0, Math.PI * 2); X.lineWidth = 2; X.strokeStyle = C_GOLD3; X.stroke();
-    if (side) { const g = EA.fonts.F_CLOCK.g['1']; drawTextC(X, 'F_CLOCK', 233, cy + T((g ? g[3] : 96) / 2) - 16, '1', C_GOLD3); drawTextC(X, 'F_BODY', 233, cy + 66, 'zł', C_GOLD3); }
-    else {
-      const P = [[-42, 22], [-48, -26], [-22, -2], [0, -38], [22, -2], [48, -26], [42, 22]];
-      X.lineCap = 'round'; X.lineJoin = 'round'; X.strokeStyle = C_GOLD3; X.lineWidth = 8;
-      X.beginPath(); P.forEach(([x, y], i) => i ? X.lineTo(233 + x, cy + y) : X.moveTo(233 + x, cy + y)); X.stroke();
-      X.lineWidth = 9; X.beginPath(); X.moveTo(191, cy + 22); X.lineTo(275, cy + 22); X.stroke();
-      X.lineWidth = 6; X.beginPath(); X.moveTo(193, cy + 40); X.lineTo(273, cy + 40); X.stroke(); X.lineCap = 'butt'; X.lineJoin = 'miter';
-      for (const i of [1, 3, 5]) disc(X, 233 + P[i][0], cy + P[i][1] - 6, 7, C_GOLD3);
-    }
-    drawTextC(X, 'F_BODY', 233, 420, c.flips ? (side ? 'reszka' : 'orzeł') : 'stuknij', c.flips ? C.ink : C.muted);
-  }
-  function coinFlipSim() { const c = simCoin(); if (c.state === 1) return; c.from = c.side; c.side = Math.random() < .5 ? 0 : 1; c.spins = 6 + (c.from ^ c.side); c.state = 1; c.t0 = now(); c.local = true; sim.dirty = true; kick(); }
-  function coinStep(n) { const c = simCoin(); if (c.state === 1) { sim.dirty = true; if (n - c.t0 >= COIN_MS && c.local) { c.state = 0; c.flips++; c.local = false; } } }
-  const WH_CY = 238, WH_R = 164, WH_HUB = 30, WH_EDIT_Y = 430, WH_COL = ['rgb(64,120,172)', 'rgb(198,104,76)', 'rgb(84,152,100)', 'rgb(186,150,58)', 'rgb(132,92,164)', 'rgb(66,142,150)'];
-  const whColor = (i, n) => { let k = i % 6; if (n > 1 && i === n - 1 && k === 0) k = 2; return WH_COL[k]; };
-  const simWheel = () => sim.wheel || (sim.wheel = { e: [], ang: 0, state: 0, res: -1, resUntil: 0, from: 0, total: 0, t0: 0, dur: 0 });
-  function drawWheel(X) {
-    const w = simWheel(), n = w.e.length;
-    if (w.state === 1 && w.dur) { const p = Math.min(1, (now() - w.t0) / w.dur); w.ang = w.from + w.total * (1 - (1 - p) ** 3); if (p >= 1 && w.local) { w.state = 0; w.local = false; const a = ((-w.ang) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI); w.res = Math.min(n - 1, Math.floor(a / (2 * Math.PI / n))); w.resUntil = now() + 4000; } sim.dirty = true; }
-    else if (w.state === 1) { w.ang += .25; sim.dirty = true; }                   // live: keeps spinning until the ESP reports the result
-    if (n) {
-      const segA = 2 * Math.PI / n;
-      for (let i = 0; i < n; i++) { const a0 = i * segA + w.ang - Math.PI / 2; X.beginPath(); X.moveTo(233, WH_CY); X.arc(233, WH_CY, WH_R, a0, a0 + segA); X.closePath(); X.fillStyle = whColor(i, n); X.fill(); }
-      if (n > 1) for (let i = 0; i < n; i++) { const a = i * segA + w.ang; X.beginPath(); X.moveTo(233, WH_CY); X.lineTo(233 + Math.sin(a) * (WH_R - 1), WH_CY - Math.cos(a) * (WH_R - 1)); X.lineWidth = 2.2; X.strokeStyle = 'rgb(14,14,14)'; X.stroke(); }
-      for (let i = 0; i < n; i++) {
-        const t = fitT('F_SMALL', w.e[i], WH_R - WH_HUB - 30), tW = tw('F_SMALL', t), mid = (i + .5) * segA + w.ang - Math.PI / 2;
-        X.save(); X.translate(233, WH_CY); X.rotate(mid); drawText(X, 'F_SMALL', WH_R - 16 - tW, 9, t, 'rgb(250,250,250)'); X.restore();
-      }
-    } else { ring2(X, 233, WH_CY, WH_R, C.line); drawTextC(X, 'F_SMALL', 233, WH_CY + 8, n ? 'potrzebne co najmniej 2 pola' : 'najpierw dodaj pola', C.muted); }
-    rrect(X, 233, WH_CY - WH_R - 4, 13, 3, Math.PI / 4, C.ink);
-    if (w.res >= 0 && w.res < n && now() < w.resUntil) { rrectS(X, 233, WH_CY, 156, 32, 32, 'rgb(14,14,14)'); drawTextC(X, 'F_BODY', 233, WH_CY + 11, fitT('F_BODY', w.e[w.res], 290), C.ink); }
-    else if (n >= 2) { disc(X, 233, WH_CY, WH_HUB, 'rgb(18,18,18)'); ring2(X, 233, WH_CY, WH_HUB, C.line); }
-    if (w.state === 0) { rrectS(X, 233, WH_EDIT_Y, 48, 20, 20, 'rgb(36,36,36)'); drawTextC(X, 'F_SMALL', 233, WH_EDIT_Y + 8, 'pola', C.ink); }
-  }
-  function wheelTapSim(x, y) {
-    const w = simWheel(), n = w.e.length; if (w.state === 1) return;
-    if (n < 2 || (x - 233) ** 2 + (y - WH_CY) ** 2 < (WH_HUB + 14) ** 2) { if (!sim.live) toast('Add fields on the ESP (keyboard)'); return; }
-    w.from = w.ang; w.total = 2 * Math.PI * (4 + Math.floor(Math.random() * 3)) + Math.random() * 2 * Math.PI; w.dur = 4200 + Math.random() * 1600; w.t0 = now(); w.state = 1; w.res = -1; w.local = !sim.live; sim.dirty = true; kick();
-  }
+
   // ---- torch: white screen, power on the right arc ----
   function drawTorch(X) {
     X.fillStyle = '#fff'; X.fillRect(0, 0, DEV, DEV);
-    const v = ((sim.torch ?? 50) - 5) / 95, a0 = arcAng(false, 0), a1 = arcAng(false, 1), av = arcAng(false, v);
+    const v = ((sim.torch ?? 80) - 5) / 95, a0 = arcAng(false, 0), a1 = arcAng(false, 1), av = arcAng(false, v);
     arcStroke(X, a0, a1, 'rgb(200,200,200)'); if (v > .004) arcStroke(X, a0, av, 'rgb(70,70,70)');
     disc(X, 233 + Math.cos(av) * ARC_R, 233 + Math.sin(av) * ARC_R, 11, 'rgb(40,40,40)');
-  }
-  // ---- wheel: list of fields (as on the ESP) ----
-  function drawWheelEdit(X) {
-    const e = simWheel().e, rows = e.length + (e.length < 12 ? 1 : 0), sc = sim.weScroll || 0;
-    for (let i = 0; i < rows; i++) {
-      const cy = 124 + i * 56 - sc; if (cy < 86 || cy > 420) continue;
-      const half = Math.min(190, Math.sqrt(Math.max(0, 222 * 222 - (cy - 233) ** 2))), xl = 233 - half, xr = 233 + half, add = i === e.length;
-      rrectS(X, 233, cy, half, 22, 22, add ? 'rgb(26,52,38)' : 'rgb(30,30,30)');
-      if (add) { const P = ic('plus'); if (P) drawIcon(X, 'plus', 153 - T(P.width / 2), T(cy) - T(P.height / 2), C.green); drawText(X, 'F_SMALL', 187, T(cy) + 8, 'dodaj pole', C.green); continue; }
-      rrectS(X, xl + 18, cy, 9, 9, 9, whColor(i, e.length)); drawText(X, 'F_SMALL', T(xl) + 36, T(cy) + 8, fitT('F_SMALL', e[i], xr - xl - 90), C.ink);
-      const Tr = ic('trashs'); if (Tr) drawIcon(X, 'trashs', T(xr) - 34 - T(Tr.width / 2), T(cy) - T(Tr.height / 2), C.muted);
-    }
-    X.fillStyle = '#000'; X.fillRect(0, 0, 466, 74); X.fillRect(0, 434, 466, 32);
-    drawTextC(X, 'F_SMALL', 233, 70, `pola koła · ${e.length}/12`, C.muted);
   }
   function torchTapSim(x, y) { if (x > 336 && Math.abs(y - 233) < 185) { sim.torch = 5 + Math.round(Math.max(0, Math.min(1, (ARC_Y1 - y) / (ARC_Y1 - ARC_Y0))) * 95); sim.dirty = true; kick(); } }
   // ---- maze: the same maze as on the ESP (same seed and same RNG) ----
   const MZ_SIDE = 300, mzCache = {};
-  const MZ_ST = [[6, 0, 0, 'rozgrzewka'], [9, 0, 0, 'trudniej'], [12, 0, 0, 'gęsto'], [9, 4, 0, 'uwaga, dziury'], [10, 0, 1, 'po ciemku'], [11, 0, 2, 'ślisko'],
-                 [11, 7, 0, 'pole minowe'], [10, 0, 4, 'na odwrót'], [12, 5, 1, 'ciemno i dziury'], [13, 6, 2, 'finał']];
+  const MZ_ST = [[6, 0, 0, 'rozgrzewka'], [8, 4, 0, 'uwaga, dziury'], [8, 0, 1, 'bez światła'], [8, 0, 4, 'na odwrót'], [12, 8, 32, 'większa · podstępne dziury'], [14, 9, 33, 'dziury po ciemku'],
+                 [16, 10, 36, 'dziury na odwrót'], [22, 14, 37, 'ogromna · wszystko naraz'], [16, 4, 8, 'teleporty'], [16, 6, 16, 'klejące ściany'], [18, 6, 10, 'lód i teleporty'], [24, 12, 61, 'finał']];
+  const MZ_TPC = ['rgb(80,200,255)', 'rgb(230,90,220)', 'rgb(250,210,80)'], MZ_GLUEC = 'rgb(222,164,58)';
   // text that fits inside the round screen at this height (like textRound on the ESP)
   const chordHalf = y => { const d = y - 233, r2 = 233 * 233 - d * d; return r2 > 0 ? T(Math.sqrt(r2)) : 0; };
   function textRound(X, f, base, s, col, margin) {
@@ -1544,241 +1530,112 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     }
     return mzCache[key] = wall;
   }
-  function drawMaze(X) {
+  function drawMaze(X) {                           // małe plansze jak na ESP; duże (na ESP z kamerą) — cała plansza zmniejszona
     const m = sim.mz; if (!m) return;
-    const n = m.n, cs = MZ_SIDE / n, x0 = 233 - MZ_SIDE / 2, y0 = 243 - MZ_SIDE / 2, w = mzWalls(m.seed, n), r = cs * .27, gx = x0 + (n - .5) * cs, gy = y0 + (n - .5) * cs;
-    disc(X, gx, gy, r * 1.35, 'rgb(16,16,16)'); X.beginPath(); X.arc(gx, gy, r * 1.35, 0, Math.PI * 2); X.lineWidth = 2; X.strokeStyle = C.green; X.stroke();
-    X.strokeStyle = 'rgb(190,190,190)'; X.lineWidth = 4; X.lineCap = 'round'; X.beginPath();
+    const n = m.n, big = n > 8, side = big ? 330 : MZ_SIDE, cs = side / n, x0 = 233 - side / 2, y0 = (big ? 236 : 243) - side / 2, w = mzWalls(m.seed, n), r = cs * .27;
+    const cx = x => x0 + (x + .5) * cs, cy = y => y0 + (y + .5) * cs, gx = cx(n - 1), gy = cy(n - 1);
+    X.fillStyle = 'rgb(10,10,12)'; X.fillRect(x0, y0, side, side);
+    disc(X, gx, gy, r * 1.35, 'rgb(14,22,16)'); ringW(X, gx, gy, r * 1.35, 2.2, C.green);
+    for (const [hx, hy, o] of m.holes || []) { const ox = T((o ?? 4) / 3) - 1, oy = (o ?? 4) % 3 - 1, px = cx(hx) + ox * cs * .22, py = cy(hy) + oy * cs * .22; disc(X, px, py, r * 1.22, 'rgb(2,2,2)'); ringW(X, px, py, r * 1.22, 1.8, 'rgb(168,104,78)'); }
+    (m.tp || []).forEach(([ax, ay, bx, by], i) => { for (const [tx, ty] of [[ax, ay], [bx, by]]) { disc(X, cx(tx), cy(ty), r * 1.1, 'rgb(6,6,10)'); ringW(X, cx(tx), cy(ty), r * 1.15, 2.2, MZ_TPC[i % 3]); } });
+    const glue = {}; for (const [gx2, gy2, b] of m.glue || []) glue[gy2 * 100 + gx2] = b;
+    const wt = big ? Math.max(1.6, cs * .12) : 4; X.lineCap = 'round';
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      const L = T(x0 + x * cs), Tp = T(y0 + y * cs), R = T(x0 + x * cs + cs), B = T(y0 + y * cs + cs);   // the ESP stores walls in whole pixels
-      if (w[y][x] & 1) { X.moveTo(L, Tp); X.lineTo(R, Tp); } if (w[y][x] & 8) { X.moveTo(L, Tp); X.lineTo(L, B); }
-      if (x === n - 1 && (w[y][x] & 2)) { X.moveTo(R, Tp); X.lineTo(R, B); } if (y === n - 1 && (w[y][x] & 4)) { X.moveTo(L, B); X.lineTo(R, B); }
+      const L = x0 + x * cs, Tp = y0 + y * cs, R = L + cs, B = Tp + cs, g = glue[y * 100 + x] || 0;
+      const seg = (a, b, c, d, gl) => { X.beginPath(); X.moveTo(a, b); X.lineTo(c, d); X.lineWidth = gl ? wt + 2 : wt; X.strokeStyle = gl ? MZ_GLUEC : 'rgb(190,190,190)'; X.stroke(); };
+      if (w[y][x] & 1) seg(L, Tp, R, Tp, g & 1); if (w[y][x] & 8) seg(L, Tp, L, B, g & 8);
+      if (x === n - 1 && (w[y][x] & 2)) seg(R, Tp, R, B, g & 2); if (y === n - 1 && (w[y][x] & 4)) seg(L, B, R, B, g & 4);
     }
-    X.stroke(); X.lineCap = 'butt';
-    for (const [hx, hy] of m.holes || []) { const cx = x0 + (hx + .5) * cs, cy = y0 + (hy + .5) * cs; disc(X, cx, cy, r * 1.3, 'rgb(4,4,4)'); X.beginPath(); X.arc(cx, cy, r * 1.3, 0, Math.PI * 2); X.lineWidth = 1.8; X.strokeStyle = 'rgb(150,100,80)'; X.stroke(); }
-    const won = m.state === 1, bx = won ? gx : x0 + cs / 2, by = won ? gy : y0 + cs / 2;
-    const st = MZ_ST[Math.min(9, Math.max(0, m.level - 1))];
-    if ((st[2] & 1) && !won) {                      // in the dark: only the area around the ball and the hole is visible
-      X.save(); X.beginPath(); X.rect(0, 0, 466, 466); X.moveTo(bx + 70, by); X.arc(bx, by, 70, 0, Math.PI * 2); const gr = r * 1.35 + 3; X.moveTo(gx + gr, gy); X.arc(gx, gy, gr, 0, Math.PI * 2); X.fillStyle = '#000'; X.fill('evenodd'); X.restore();
+    X.lineCap = 'butt';
+    const won = m.state === 1, bx = won ? gx : cx(0), by = won ? gy : cy(0), st = MZ_ST[Math.min(11, Math.max(0, m.level - 1))];
+    if ((st[2] & 1) && !won && !big) {              // po ciemku (mała plansza): widać tylko okolicę kulki i dołek
+      X.save(); X.beginPath(); X.rect(0, 0, 466, 466); X.moveTo(bx + 82, by); X.arc(bx, by, 82, 0, Math.PI * 2); const gr = r * 1.35 + 4; X.moveTo(gx + gr, gy); X.arc(gx, gy, gr, 0, Math.PI * 2); X.fillStyle = '#000'; X.fill('evenodd'); X.restore();
     }
     disc(X, bx, by, r, won ? C.green : C.ink);
-    const ms = s => `${T(s / 60)}:${String(s % 60).padStart(2, '0')}`, el = (now() - (sim.mzT0 || now())) / 1000;
-    textRound(X, 'F_SMALL', 70, `etap ${m.level}/10 · ` + ms(won ? m.time : T(el)), won ? C.green : C.muted, 16);
-    if (won) { textRound(X, 'F_SMALL', 418, m.level === 10 ? 'wszystkie etapy!' : (!m.best || m.time < m.best) ? 'nowy rekord!' : 'rekord ' + ms(m.best), C.green, 14); textRound(X, 'F_SMALL', 444, m.level === 10 ? 'stuknij: od nowa' : 'stuknij: dalej', C.muted, 10); }
-    else if (m.falls) textRound(X, 'F_SMALL', 426, 'wpadki: ' + m.falls, 'rgb(200,120,100)', 14);
-    else if (el < 2.5) textRound(X, 'F_SMALL', 426, st[3], C.muted, 14);
-    else if (m.best) textRound(X, 'F_SMALL', 426, 'rekord ' + ms(m.best), C.dim, 14);
+    const ms = s2 => `${T(s2 / 60)}:${String(s2 % 60).padStart(2, '0')}`, el = (now() - (sim.mzT0 || now())) / 1000;
+    rrectS(X, 233, 60, 92, 17, 17, '#000');
+    textRound(X, 'F_SMALL', 68, `etap ${m.level}/12 · ` + ms(won ? m.time : T(el)), won ? C.green : C.muted, 16);
+    if (won) { rrectS(X, 233, 421, 132, 36, 22, '#000'); textRound(X, 'F_SMALL', 418, m.level === 12 ? 'wszystkie etapy!' : (!m.best || m.time <= m.best) ? 'nowy rekord!' : 'rekord ' + ms(m.best), C.green, 14); textRound(X, 'F_SMALL', 444, m.level === 12 ? 'stuknij: od nowa' : 'stuknij: dalej', C.muted, 10); }
+    else {
+      const bt = el < 3 ? st[3] : m.falls ? 'wpadki: ' + m.falls : m.best ? 'rekord ' + ms(m.best) : '';
+      if (bt) { rrectS(X, 233, 420, Math.min(150, T(tw('F_SMALL', bt) / 2) + 16), 17, 17, '#000'); textRound(X, 'F_SMALL', 428, bt, el < 3 ? C.muted : m.falls ? 'rgb(200,120,100)' : C.dim, 14); }
+    }
   }
+
   // ---- mini games (like Gry.h on the ESP): the preview draws the state the ESP sends ----
   const gryHash = x => { x >>>= 0; x ^= x >>> 16; x = Math.imul(x, 0x7feb352d) >>> 0; x ^= x >>> 15; x = Math.imul(x, 0x846ca68b) >>> 0; x ^= x >>> 16; return x >>> 0; };
   const G = { key: 'rgb(62,62,64)', panel: 'rgb(14,14,16)', green: 'rgb(83,141,78)', yellow: 'rgb(181,159,59)', grey: 'rgb(54,54,56)', orange: 'rgb(196,128,44)', bad: 'rgb(150,54,48)', blue: 'rgb(120,186,255)' };
   const gryBtn = (X, cx, cy, hw, t, bg, fg) => { rrectS(X, cx, cy, hw, 22, 22, bg); drawTextC(X, 'F_SMALL', cx, cy + 8, t, fg); };
   function ringW(X, cx, cy, r, w, col) { X.beginPath(); X.arc(cx, cy, r, 0, Math.PI * 2); X.lineWidth = w; X.strokeStyle = col; X.stroke(); }
   const gParts = () => String(dev && dev.screen || '').split(':');
-  // racing
-  const CAR_Y = 350, CAR_BLK = 150, CAR_COLS = ['rgb(90,140,230)', 'rgb(230,180,60)', 'rgb(170,96,220)', 'rgb(230,110,150)'];
-  const carCx = d => { const a = Math.min(1, d / 5000); return 233 + (34 + 46 * a) * Math.sin(d / 560) + (14 + 30 * a) * Math.sin(d / 230 + 1.3); };
-  const carHw = d => Math.max(78, 118 - d / 260);
+  // racing (like Gry.h: wide road with barriers, coins count towards the record)
+  const CAR_Y = 352, CAR_BLK = 160, OBS_V = 90, CAR_COLS = ['rgb(90,140,230)', 'rgb(230,180,60)', 'rgb(170,96,220)', 'rgb(230,110,150)'];
+  const carCx = d => { const a = Math.min(1, d / 6000); return 233 + (30 + 40 * a) * Math.sin(d / 640) + (12 + 22 * a) * Math.sin(d / 260 + 1.3); };
+  const carHw = d => Math.max(118, 150 - d / 420);
   const carH = (seed, k) => gryHash((Math.imul(k, 2654435761) ^ seed) >>> 0);
-  function carObs(seed, k) {
+  const carLaneX = (d, lane) => carCx(d) + lane * carHw(d) * 0.62;
+  function carObs(seed, k, run) {
     if (k < 3) return null;
-    const h = carH(seed, k), chance = Math.min(78, 30 + T(k / 4));
+    const h = carH(seed, k), chance = Math.min(72, 26 + T(k / 3));
     if (h % 100 >= chance) return null;
-    const od = k * CAR_BLK + 75, lane = (h >>> 8) % 3 - 1;
-    return { ox: carCx(od) + lane * carHw(od) * 0.56, od, type: ((h >>> 12) % 4) === 0 ? 2 : 1, col: CAR_COLS[(h >>> 16) % 4] };
+    const lane = (h >>> 8) % 3 - 1, type = ((h >>> 12) % 4) === 0 ? 2 : 1, od = k * CAR_BLK + 80 + (type === 1 ? OBS_V * run : 0);
+    return { ox: carLaneX(od, lane), od, type, lane, col: CAR_COLS[(h >>> 16) % 4] };
+  }
+  function carCoins(seed, k, run) {
+    if (k < 2) return [];
+    const h = carH(seed, k * 7 + 3); if (h % 100 >= 58) return [];
+    const o = carObs(seed, k, run); let lane = (h >>> 8) % 3 - 1; if (o && lane === o.lane) lane = lane === 0 ? 1 : 0;
+    let lane2 = ((h >>> 14) % 3 === 0) ? Math.max(-1, Math.min(1, lane + (((h >>> 16) & 1) ? 1 : -1))) : lane; if (o && lane2 === o.lane) lane2 = lane;
+    const out = [];
+    for (let i = 0; i < 5; i++) { const d = k * CAR_BLK + 12 + i * 30, f = lane2 === lane ? 0 : Math.max(0, Math.min(1, (i - 1) / 3)); out.push([carLaneX(d, lane) + (carLaneX(d, lane2) - carLaneX(d, lane)) * f, d]); }
+    return out;
+  }
+  function carBodyS(X, x, y, body, player) {
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) rrectS(X, x + sx * 13, y + sy * 13, 3, 6, 2, 'rgb(20,20,22)');
+    rrectS(X, x, y, 14, 24, 8, body); rrectS(X, x, y - 9, 10, 6, 3, player ? 'rgb(18,40,30)' : 'rgb(22,22,26)'); rrectS(X, x, y + 13, 9, 4, 2, player ? 'rgb(18,40,30)' : 'rgb(22,22,26)');
+    if (player) { disc(X, x - 8, y - 22, 2.6, 'rgb(255,250,210)'); disc(X, x + 8, y - 22, 2.6, 'rgb(255,250,210)'); }
   }
   function drawCar(X) {
-    const p = gParts(), st = +p[1] || 0, seed = (+p[2] || 1) >>> 0, dist = +p[3] || 0, cx0 = p[4] != null ? +p[4] : 233, best = +p[5] || 0;
+    const p = gParts(), st = +p[1] || 0, seed = (+p[2] || 1) >>> 0, dist = +p[3] || 0, px = p[4] != null ? +p[4] : 233, best = +p[5] || 0, coins = +p[6] || 0, run = (+p[7] || 0) / 10;
     for (let y = 0; y < 466; y++) {
       const half = chordHalf(y); if (half <= 0) continue;
       const L = 233 - half, R = 233 + half, wd = dist + (CAR_Y - y), c = carCx(wd), hw = carHw(wd), rl = T(c - hw), rr = T(c + hw);
-      if (Math.min(R, rr) > Math.max(L, rl)) fillR(X, Math.max(L, rl), y, Math.min(R, rr) - Math.max(L, rl), 1, 'rgb(34,34,36)');
-      const cb = Math.floor(wd / 22) & 1 ? 'rgb(200,64,52)' : 'rgb(225,225,225)';
-      if (Math.min(R, rl) > Math.max(L, rl - 5)) fillR(X, Math.max(L, rl - 5), y, Math.min(R, rl) - Math.max(L, rl - 5), 1, cb);
-      if (Math.min(R, rr + 5) > Math.max(L, rr)) fillR(X, Math.max(L, rr), y, Math.min(R, rr + 5) - Math.max(L, rr), 1, cb);
-      if ((wd + 96000) % 48 < 24) fillR(X, Math.max(L, T(c) - 1), y, 3, 1, 'rgb(120,120,120)');
+      fillR(X, L, y, R - L, 1, Math.floor(wd / 46) & 1 ? 'rgb(10,18,13)' : 'rgb(13,23,16)');
+      const seg = (a, b, col) => { const s0 = Math.max(L, a), s1 = Math.min(R, b); if (s1 > s0) fillR(X, s0, y, s1 - s0, 1, col); };
+      seg(rl, rr, Math.floor(wd / 90) & 1 ? 'rgb(36,36,40)' : 'rgb(39,39,43)');
+      const cb = Math.floor(wd / 24) & 1 ? 'rgb(200,64,52)' : 'rgb(225,225,225)'; seg(rl - 6, rl, cb); seg(rr, rr + 6, cb);
+      seg(rl - 11, rl - 8, 'rgb(150,156,165)'); seg(rr + 8, rr + 11, 'rgb(150,156,165)');
+      if ((wd + 96000) % 54 < 26) for (const ln of [-1, 1]) { const lx = T(c + ln * hw * 0.31); seg(lx - 1, lx + 2, 'rgb(150,150,150)'); }
     }
-    const k0 = T((dist - (466 - CAR_Y) - 40) / CAR_BLK), k1 = T((dist + CAR_Y + 40) / CAR_BLK);
-    for (let k = Math.max(0, k0); k <= k1; k++) {
-      const o = carObs(seed, k); if (!o) continue; const sy = CAR_Y - (o.od - dist);
-      if (o.type === 1) { rrectS(X, o.ox, sy, 12, 20, 6, o.col); rrectS(X, o.ox, sy - 7, 9, 5, 3, 'rgb(22,22,26)'); rrectS(X, o.ox, sy + 11, 8, 3, 2, 'rgb(22,22,26)'); }
-      else { disc(X, o.ox, sy, 9, 'rgb(240,140,40)'); ringW(X, o.ox, sy, 5, 2, 'rgb(240,240,240)'); }
+    const k0 = T((dist - (466 - CAR_Y) - 60) / CAR_BLK) - 1, k1 = T((dist + CAR_Y + 60) / CAR_BLK);
+    for (let k = Math.max(0, k0); k <= k1; k++) for (const [cx, cd] of carCoins(seed, k, run)) { const sy = CAR_Y - (cd - dist); if (sy > CAR_Y + 30 || sy < -12 || sy > 478) continue; rrectS(X, cx, sy, 9, 9, 9, 'rgb(242,196,70)'); rrectS(X, cx, sy, 6, 6, 6, 'rgb(212,160,46)'); }
+    for (let k = Math.max(0, k0 - 1); k <= k1; k++) {
+      const o = carObs(seed, k, run); if (!o) continue; const sy = CAR_Y - (o.od - dist); if (sy < -30 || sy > 496) continue;
+      if (o.type === 1) carBodyS(X, o.ox, sy, o.col, false);
+      else for (const j of [-1, 0, 1]) { disc(X, o.ox + j * 22, sy, 9, 'rgb(240,140,40)'); ringW(X, o.ox + j * 22, sy, 5, 2, 'rgb(240,240,240)'); }
     }
-    const px = cx0;
-    for (const sx of [-1, 1]) for (const sy of [-1, 1]) fillR(X, T(px) + sx * 13 - 2, CAR_Y + sy * 12 - 5, 4, 10, 'rgb(96,96,96)');
-    rrectS(X, px, CAR_Y, 13, 22, 7, st === 2 ? C.red : C.green);
-    rrectS(X, px, CAR_Y - 8, 9, 5, 3, 'rgb(18,40,30)'); rrectS(X, px, CAR_Y + 12, 8, 3, 2, 'rgb(18,40,30)');
-    disc(X, px - 7, CAR_Y - 21, 2.2, C.ink); disc(X, px + 7, CAR_Y - 21, 2.2, C.ink);
-    textRound(X, 'F_SMALL', 66, T(dist / 10) + ' m', C.ink, 16);
+    carBodyS(X, px, CAR_Y, st === 2 ? C.red : C.green, true);
+    rrectS(X, 233, 60, 62, 20, 20, '#000'); disc(X, 203, 60, 9, 'rgb(242,196,70)'); disc(X, 203, 60, 5.5, 'rgb(212,160,46)');
+    drawText(X, 'F_BODY', 219, 71, String(coins), C.ink); textRound(X, 'F_TINY', 98, T(dist / 10) + ' m', C.muted, 16);
     if (st === 0) {
-      rrectS(X, 233, 210, 168, 74, 20, G.panel);
-      drawTextC(X, 'F_SMALL', 233, 178, 'trzymaj ESP jak kierownicę', C.ink); drawTextC(X, 'F_SMALL', 233, 208, 'albo przechylaj na boki', C.muted);
-      drawTextC(X, 'F_TINY', 233, 236, 'dotyk = hamulec', C.muted); drawTextC(X, 'F_SMALL', 233, 268, 'stuknij: start', C.green);
+      rrectS(X, 233, 210, 172, 86, 22, 'rgb(14,14,16)');
+      drawTextC(X, 'F_SMALL', 233, 168, 'trzymaj ESP jak kierownicę', C.ink); drawTextC(X, 'F_SMALL', 233, 196, 'zbieraj monety, omijaj auta', C.muted);
+      drawTextC(X, 'F_TINY', 233, 224, 'dotyk = hamulec', C.muted); drawTextC(X, 'F_SMALL', 233, 262, 'stuknij: start', C.green);
+      if (best) textRound(X, 'F_TINY', 432, `rekord: ${best} monet`, C.dim, 12);
     } else if (st === 2) {
-      rrectS(X, 233, 210, 150, 64, 20, G.panel);
-      drawTextC(X, 'F_BODY', 233, 190, 'rozbity!', C.red); drawTextC(X, 'F_SMALL', 233, 224, `${T(dist / 10)} m · rekord ${best} m`, C.ink);
-      drawTextC(X, 'F_SMALL', 233, 256, 'stuknij: jeszcze raz', C.muted);
-    } else if (best) textRound(X, 'F_TINY', 432, `rekord ${best} m`, C.dim, 12);
-  }
-  // sudoku
-  const SD_P = [[0,"600009084002730050000000003501003008070000040300900506200000000080042600490600005","637159284842736159159284763561423978978561342324978516216895437785342691493617825",""],[1,"100070000030000160094306080000800000200407008000003000080609420062000070000080009","126578394835924167794316285653891742219467538478253916587639421962145873341782659","000111555000111552000111552333444522333444522373444222773666888777666888777666888"],[2,"010000064020079000004000072100040030000000000040090006270000600000280090850000020","718325964625479318934816572196542837587631249342798156279154683461283795853967421",""],[0,"200000000307400201080000630000530006060070050500081000073000020608002307000000004","216395748357468291489127635792534186861279453534681972173846529648952317925713864",""],[1,"001609000006080040000001007700058090000000000090170003800700000050030800000802400","371649528926587341485321967763258194148963752592174683814795236257436819639812475","000012222001011222001111122333334555333344555444444557666666757688868777688888777"],[2,"050970000400610000607000200000020000030000010000030000004000302000093007000056080","853972641429615873617348295748129536235867914961534728594781362186293457372456189",""],[0,"028400000001080002090000003050146000000070000000358060100000090800010700000002850","528493617361587942794621583953146278486279135217358469172865394835914726649732851",""],[1,"080200030000003000000500040600000103000174000509000002030001000000400000040005090","485219637267843915391567248674952183823174569519386472938621754756498321142735896","022222222000021111000011111333347855333347855344447855666447855666477885666777888"],[2,"081000300000090001300600000000510000000030000000079000000002007900040000007000960","681724359574893621392651748439518276718236495256479813845962137963147582127385964",""],[0,"000008952002004000050000006100050064000060000960020007700000080000700400813200000","471638952682594713359172846137859264245367198968421537724916385596783421813245679",""],[1,"093000000450000000000900306000100060040000030080009000204003000000000043000000810","193265784456378129728941356375124968941687235682539471264813597819752643537496812","300411222330441225300441225300411225300471555333471585777471885667776888666666888"],[1,"000607030700000080000000000001083005000509000300420800000000000020000008080205000","845617239732954681916832754261783945478569312359421867593178426124396578687245193","000005555000111555031111155331444422333442222366447882336477782666777782666788888"]];
-  const SD_C = 33, SD_X0 = 233 - T(9 * SD_C / 2), SD_Y0 = 92;
-  const SD_TINT = [[22, 24, 34], [34, 26, 20], [20, 32, 26], [32, 22, 34], [18, 30, 36], [34, 32, 18], [28, 28, 28], [36, 22, 24], [20, 34, 34]];
-  const rgbA = a => `rgb(${a[0]},${a[1]},${a[2]})`, blendA = (a, b, k) => a.map((v, i) => T(v + (b[i] - v) * k / 15));
-  function drawSudoku(X) {
-    const p = gParts(), lv = +p[1] || 0, mins = +p[2] || 0, sel = p[3] != null ? +p[3] : -1, pick = +p[4] || 0, done = p[5] === '1', v = p[6] || '', notes = {}, hint = p[8] === '1';
-    (p[7] || '').split(',').filter(Boolean).forEach(e => { const [i, m] = e.split('.').map(Number); notes[i] = m; });
-    const P = SD_P[Math.min(SD_P.length - 1, lv)], kind = P[0];
-    const reg = i => kind === 1 ? +P[3][i] : T(i / 27) * 3 + T((i % 9) / 3), given = i => P[1][i] !== '0', val = i => +(v[i] || 0);
-    const peer = (a, b) => { if (a === b) return false; if (T(a / 9) === T(b / 9) || a % 9 === b % 9 || reg(a) === reg(b)) return true; if (kind === 2) { if (T(a / 9) === a % 9 && T(b / 9) === b % 9) return true; if (T(a / 9) + a % 9 === 8 && T(b / 9) + b % 9 === 8) return true; } return false; };
-    const conflict = i => { if (!val(i)) return false; for (let j = 0; j < 81; j++) if (val(j) === val(i) && peer(i, j)) return true; return false; };
-    for (let i = 0; i < 81; i++) {
-      const r = T(i / 9), c = i % 9, x = SD_X0 + c * SD_C, y = SD_Y0 + r * SD_C;
-      let bg = kind === 1 ? SD_TINT[reg(i)] : (((T(r / 3) + T(c / 3)) & 1) ? [28, 28, 30] : [16, 16, 18]);
-      if (kind === 2 && (r === c || r + c === 8)) bg = [44, 36, 16];
-      if (sel >= 0) { if (i === sel) bg = [78, 78, 84]; else if (val(sel) && val(i) === val(sel)) bg = [36, 76, 56]; else if (peer(sel, i)) bg = blendA(bg, [243, 243, 243], 2); }
-      fillR(X, x, y, SD_C, SD_C, rgbA(bg));
-      if (val(i)) drawTextC(X, 'F_SMALL', x + T(SD_C / 2), y + T(SD_C / 2) + 9, String(val(i)), given(i) ? C.ink : conflict(i) ? C.red : G.blue);
-      else if (notes[i]) for (let d = 1; d <= 9; d++) if (notes[i] >> (d - 1) & 1) drawTextC(X, 'F_TINY', x + 6 + ((d - 1) % 3) * 10 + 1, y + 11 + T((d - 1) / 3) * 10, String(d), C.muted);
-    }
-    const THIN = 'rgb(58,58,62)', THICK = 'rgb(176,176,180)';
-    for (let i = 0; i < 81; i++) {
-      const r = T(i / 9), c = i % 9, x = SD_X0 + c * SD_C, y = SD_Y0 + r * SD_C;
-      if (c < 8) { if (reg(i) !== reg(i + 1)) fillR(X, x + SD_C - 1, y - 1, 3, SD_C + 2, THICK); else fillR(X, x + SD_C, y, 1, SD_C, THIN); }
-      if (r < 8) { if (reg(i) !== reg(i + 9)) fillR(X, x - 1, y + SD_C - 1, SD_C + 2, 3, THICK); else fillR(X, x, y + SD_C, SD_C, 1, THIN); }
-    }
-    const B = 9 * SD_C;
-    fillR(X, SD_X0 - 2, SD_Y0 - 2, B + 4, 3, THICK); fillR(X, SD_X0 - 2, SD_Y0 + B - 1, B + 4, 3, THICK); fillR(X, SD_X0 - 2, SD_Y0 - 2, 3, B + 4, THICK); fillR(X, SD_X0 + B - 1, SD_Y0 - 2, 3, B + 4, THICK);
-    const KIND = ['klasyczne', 'kształty', 'przekątne'];
-    if (done) textRound(X, 'F_SMALL', 74, `rozwiązane · ${mins} min`, C.green, 12);
-    else textRound(X, 'F_SMALL', 74, `${lv + 1}/${SD_P.length} · ${KIND[kind]}`, C.muted, 12);
-    if (done) textRound(X, 'F_SMALL', 424, 'stuknij: następne', C.green, 12);
-    else if (!pick && hint) { textRound(X, 'F_TINY', 414, 'przytrzymaj pole: notatki', C.dim, 12); textRound(X, 'F_TINY', 434, 'tu: od nowa · u góry: pomiń', C.dim, 12); }
-    else if (!pick) textRound(X, 'F_TINY', 420, `${mins} min`, C.dim, 12);
-    if (pick && sel >= 0) {
-      const top = T(sel / 9) >= 4 ? 24 : 246, noteMode = pick === 2, count = d => { let n = 0; for (let i = 0; i < 81; i++) if (val(i) === d) n++; return n; };
-      rrectS(X, 233, top + 98, 82, 100, 20, 'rgb(80,80,84)'); rrectS(X, 233, top + 98, 80, 98, 19, G.panel);
-      for (let k = 0; k < 11; k++) {
-        const cx = k < 9 ? 233 + (k % 3 - 1) * 48 : 233 + (k === 9 ? -36 : 36), cy = k < 9 ? top + 30 + T(k / 3) * 46 : top + 30 + 3 * 46 - 2, hw = k < 9 ? 22 : 33, hh = k < 9 ? 21 : 19;
-        const on = k < 9 ? (noteMode ? !!((notes[sel] || 0) >> k & 1) : val(sel) === k + 1) : (k === 9 && noteMode);
-        rrectS(X, cx, cy, hw, hh, 8, on ? G.green : G.key);
-        if (k < 9) drawTextC(X, 'F_SMALL', cx, cy + 8, String(k + 1), count(k + 1) >= 9 && !on ? C.muted : C.ink);
-        else drawTextC(X, 'F_TINY', cx, cy + 5, k === 9 ? 'notatki' : 'usuń', C.ink);
-      }
-    }
-  }
-  // checkers
-  const CH_X0 = 73, CH_C = 40;
-  function drawCheckers(X) {
-    const p = gParts(), mode = +p[1] || 0, game = p[2] === '1', turn = +p[3] || 1, state = +p[4] || 0, win = +p[5] || 0, thinking = p[6] === '1';
-    const sel = p[7] != null ? +p[7] : -1, lf = +p[8], lt = +p[9], b = p[10] || '', dests = (p[11] || '').split(',').filter(Boolean).map(Number), cap = (p[12] || '').split(',').filter(Boolean).map(Number);
-    if (!mode) {
-      drawTextC(X, 'F_BODY', 233, game ? 128 : 160, 'warcaby', C.ink);
-      if (game) gryBtn(X, 233, 182, 110, 'wróć do gry', G.key, C.ink);
-      gryBtn(X, 233, 244, 110, '2 osoby', G.key, C.ink); gryBtn(X, 233, 302, 110, 'z ESP', G.green, C.ink);
-      textRound(X, 'F_TINY', 360, 'białe zaczynają · bicie obowiązkowe', C.dim, 16); return;
-    }
-    for (let i = 0; i < 64; i++) {
-      const r = T(i / 8), c = i % 8; let bg = (r + c) & 1 ? 'rgb(52,52,56)' : 'rgb(20,20,22)';
-      if (i === lf || i === lt) bg = 'rgb(58,74,60)'; if (i === sel) bg = 'rgb(70,98,80)';
-      fillR(X, CH_X0 + c * CH_C, CH_X0 + r * CH_C, CH_C, CH_C, bg);
-    }
-    for (let i = 0; i < 64; i++) {
-      const ch = b[i]; if (!ch || ch === '.') continue;
-      const cx = CH_X0 + (i % 8) * CH_C + 20, cy = CH_X0 + T(i / 8) * CH_C + 20, w = ch === 'w' || ch === 'W';
-      if (cap.includes(i)) ringW(X, cx, cy, 18, 1.6, 'rgb(222,178,84)');
-      disc(X, cx, cy + 2, 15, 'rgb(8,8,8)'); disc(X, cx, cy, 15, w ? 'rgb(236,236,236)' : 'rgb(214,72,60)');
-      ringW(X, cx, cy, 10, 1.5, w ? 'rgb(176,176,176)' : 'rgb(150,46,38)');
-      if (ch === 'W' || ch === 'R') { ringW(X, cx, cy, 6, 2.2, 'rgb(222,178,84)'); disc(X, cx, cy, 2.4, 'rgb(222,178,84)'); }
-      if (i === sel) ringW(X, cx, cy, 18, 2, C.green);
-    }
-    for (const d of dests) disc(X, CH_X0 + (d % 8) * CH_C + 20, CH_X0 + T(d / 8) * CH_C + 20, 7, C.green);
-    ringW(X, 233, 233, 229, 4, state ? C.dim : turn > 0 ? 'rgb(210,210,210)' : 'rgb(214,72,60)');
-    const t = state ? (win > 0 ? 'wygrały białe!' : win < 0 ? (mode === 2 ? 'wygrało ESP' : 'wygrały czerwone!') : 'remis') : thinking ? 'ESP myśli…' : turn > 0 ? 'ruch: białe' : 'ruch: czerwone';
-    textRound(X, 'F_SMALL', 56, t, state ? C.green : C.muted, 18);
-    textRound(X, 'F_TINY', 432, state ? 'stuknij: nowa gra' : 'przytrzymaj: menu', C.dim, 12);
-  }
-  // Wordle
-  const WD_KB = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'], WD_TILE = 32, WD_PITCH = 36, WD_TOP = 48, WD_KY = [302, 342, 382], WD_KP = 32;
-  const wdKey = k => k < 10 ? [233 + (k - 4.5) * WD_KP, WD_KY[0], 14] : k < 19 ? [233 + (k - 14) * WD_KP, WD_KY[1], 14] : k < 26 ? [233 + (k - 22) * WD_KP, WD_KY[2], 14] : [k === 26 ? 233 - 3.5 * WD_KP - 26 : 233 + 3.5 * WD_KP + 26, WD_KY[2], 20];
-  const wdKeyChar = k => k < 10 ? WD_KB[0][k] : k < 19 ? WD_KB[1][k - 10] : WD_KB[2][k - 19];
-  function drawWordle(X) {
-    const p = gParts(), mode = +p[1] || 0, state = +p[2] || 0, load = +p[3] || 0, cur = p[5] || '', sol = p[6] || '', stats = (p[7] || '0.0.0').split('.').map(Number), msg = p.slice(8).join(':');
-    const rows = (p[4] || '').split(',').filter(Boolean).map(r => ({ w: r.slice(0, 5), sc: [...r.slice(5)].map(Number) }));
-    if (load === 1) { drawTextC(X, 'F_SMALL', 233, 222, 'pobieram dzisiejsze hasło…', C.muted); drawTextC(X, 'F_TINY', 233, 252, 'New York Times · Wordle', C.dim); return; }
-    const scCol = s => s === 2 ? G.green : s === 1 ? G.yellow : G.grey;
-    for (let r = 0; r < 6; r++) for (let i = 0; i < 5; i++) {
-      const cx = 233 + (i - 2) * WD_PITCH, cy = WD_TOP + r * WD_PITCH + WD_TILE / 2;
-      const ch = r < rows.length ? rows[r].w[i] : (r === rows.length && i < cur.length && !state) ? cur[i] : '';
-      if (r < rows.length) rrectS(X, cx, cy, 16, 16, 4, scCol(rows[r].sc[i]));
-      else { rrectS(X, cx, cy, 16, 16, 4, ch ? 'rgb(110,110,114)' : 'rgb(46,46,48)'); rrectS(X, cx, cy, 14, 14, 3, '#000'); }
-      if (ch) drawTextC(X, 'F_SMALL', cx, cy + 9, ch.toUpperCase(), C.ink);
-    }
-    if (state) {
-      textRound(X, 'F_SMALL', 300, state === 1 ? (rows.length === 1 ? 'brawo! za pierwszym razem' : `brawo! ${rows.length}/6`) : 'hasło: ' + sol.toUpperCase(), state === 1 ? C.green : C.red, 16);
-      textRound(X, 'F_TINY', 330, mode ? 'trening' : `seria: ${stats[0]} · wygrane: ${stats[1]}/${stats[2]}`, C.muted, 16);
-      gryBtn(X, 233, 372, 82, 'trening', G.key, C.ink);
-      if (!mode) textRound(X, 'F_TINY', 418, 'jutro nowe hasło', C.dim, 14);
-    } else {
-      const st = ch => { let s = -1; rows.forEach(r => [...r.w].forEach((c, i) => { if (c === ch) s = Math.max(s, r.sc[i]); })); return s; };
-      for (let k = 0; k < 28; k++) {
-        const [cx, cy, hw] = wdKey(k); let bg = G.key;
-        if (k < 26) { const s2 = st(wdKeyChar(k)); bg = s2 === 2 ? G.green : s2 === 1 ? G.yellow : s2 === 0 ? 'rgb(30,30,32)' : G.key; }
-        rrectS(X, cx, cy, hw, 17, 6, bg);
-        if (k < 26) drawTextC(X, 'F_SMALL', T(cx), cy + 8, wdKeyChar(k).toUpperCase(), C.ink);
-        else { const n = k === 26 ? 'checks' : 'kbdel', I = ic(n); drawIcon(X, n, T(cx) - T(I.width / 2), cy - T(I.height / 2), C.ink); }
-      }
-      if (load === 3 && !mode) textRound(X, 'F_TINY', 426, 'bez internetu: hasło zastępcze', C.dim, 12);
-      else if (mode) textRound(X, 'F_TINY', 426, 'trening', C.dim, 12);
-    }
-    if (msg) { const w = T(tw('F_SMALL', msg) / 2) + 18; rrectS(X, 233, 150, w, 22, 22, 'rgb(236,236,236)'); drawTextC(X, 'F_SMALL', 233, 158, msg, 'rgb(10,10,10)'); }
-  }
-  // LoLdle
-  const LOL_LBL = ['klasa', 'zasób', 'zasięg', 'atak', 'obr.', 'magia', 'trudn.'], lolCol = c => c === 2 ? G.green : c === 1 ? G.orange : G.bad;
-  function drawLol(X) {
-    const p = gParts(), load = +p[1] || 0;
-    if (load !== 2) {
-      drawTextC(X, 'F_BODY', 233, 170, 'LoLdle', C.ink);
-      if (load === 1) drawTextC(X, 'F_SMALL', 233, 222, 'pobieram bohaterów…', C.muted);
-      else { drawTextC(X, 'F_SMALL', 233, 222, 'nie udało się pobrać danych', C.red); drawTextC(X, 'F_TINY', 233, 250, 'potrzebne Wi-Fi · stuknij: jeszcze raz', C.muted); }
-      drawTextC(X, 'F_TINY', 233, 300, 'dane: Riot Games · Data Dragon', C.dim); return;
-    }
-    const practice = p[2] === '1', won = p[3] === '1', gn = +p[4] || 0, title = p[5] || '', msg = p[6] || '';
-    const gs = p.slice(7).join(':').split('|').filter(Boolean).map(g => { const a = g.split('~'); return { name: a[0], t: [1, 3, 5, 7, 9, 11, 13].map(i => (a[i] || '').replace('/', '\n')), c: [2, 4, 6, 8, 10, 12, 14].map(i => +a[i] || 0) }; });
-    let head = practice ? 'LoLdle · trening' : 'LoLdle · bohater dnia';
-    if (gn && !won) head = (practice ? 'trening · próba ' : 'LoLdle · próba ') + (gn + 1);
-    textRound(X, 'F_SMALL', 62, won ? (gn === 1 ? 'za pierwszym razem!' : `trafiony! prób: ${gn}`) : head, won ? C.green : C.muted, 14);
-    if (gs.length) {
-      const g = gs[0];
-      drawTextC(X, 'F_BODY', 233, 100, fitT('F_BODY', g.name, 300), won ? C.green : C.ink);
-      for (let k = 0; k < 7; k++) {
-        const cx = 233 + (k - 3) * 46; rrectS(X, cx, 140, 22, 22, 6, lolCol(g.c[k]));
-        const nl = g.t[k].indexOf('\n');
-        if (nl >= 0) { drawTextC(X, 'F_TINY', cx, 136, g.t[k].slice(0, nl), C.ink); drawTextC(X, 'F_TINY', cx, 152, g.t[k].slice(nl + 1), C.ink); }
-        else drawTextC(X, 'F_TINY', cx, 145, fitT('F_TINY', g.t[k], 43), C.ink);
-        drawTextC(X, 'F_TINY', cx, 178, LOL_LBL[k], C.dim);
-      }
-      for (let r = 1; r <= 5 && r < gs.length; r++) {
-        const P = gs[r], y = 186 + r * 30;
-        drawText(X, 'F_SMALL', 233 - 150, y + 8, fitT('F_SMALL', P.name, 124), C.muted);
-        for (let k = 0; k < 7; k++) rrectS(X, 233 - 14 + k * 23, y, 9, 9, 3, lolCol(P.c[k]));
-      }
-    } else {
-      drawTextC(X, 'F_SMALL', 233, 180, 'zgadnij bohatera', C.ink);
-      drawTextC(X, 'F_TINY', 233, 210, 'kolory: zielony = to samo, pomarańczowy = blisko', C.muted);
-      drawTextC(X, 'F_TINY', 233, 230, '↑ szukany ma więcej, ↓ mniej', C.muted);
-    }
-    if (msg) textRound(X, 'F_TINY', 380, msg, msg.startsWith('nie znam') ? C.red : G.yellow, 14);
-    if (won) { textRound(X, 'F_TINY', 382, title, C.muted, 14); gryBtn(X, 233, 414, 74, 'losowy', G.key, C.ink); }
-    else gryBtn(X, 233, 414, 74, 'zgadnij', G.green, C.ink);
+      rrectS(X, 233, 214, 156, 76, 22, 'rgb(14,14,16)');
+      drawTextC(X, 'F_BODY', 233, 186, 'rozbity!', C.red); drawTextC(X, 'F_SMALL', 233, 220, `${coins} monet · ${T(dist / 10)} m`, C.ink);
+      drawTextC(X, 'F_SMALL', 233, 248, coins >= best && coins > 0 ? 'nowy rekord!' : `rekord: ${best} monet`, coins >= best && coins > 0 ? 'rgb(255,214,90)' : C.muted);
+      drawTextC(X, 'F_TINY', 233, 274, 'stuknij: jeszcze raz', C.muted);
+    } else if (best) textRound(X, 'F_TINY', 432, `rekord ${best}`, C.dim, 12);
   }
   // back gesture (from the left edge): where each screen goes back to — like backOf() in the ESP
   function backOfSim(s) {
     if (['apps', 'msg', 'wakeend'].includes(s)) return 'home';
-    if (['alarms', 'timer', 'games', 'level', 'torch'].includes(s)) return 'apps';
+    if (['alarms', 'timer', 'games'].includes(s)) return 'apps';
+    if (s === 'torch') return 'stby';
     if (s === 'aedit') return 'alarms';
-    if (['dice', 'wheel', 'coin', 'maze', 'car', 'sudoku', 'chk', 'wordle', 'lol'].includes(s)) return 'games';
-    if (s === 'wheeled') return 'wheel';
+    if (['maze', 'car'].includes(s)) return 'games';
     if (s === 'wifi' || s === 'bt') return 'set';
     if (s === 'portal') return 'wifi';
     if (s === 'heart') return sim.heartPrev || 'home';
@@ -1803,7 +1660,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     alarms: [], alarmsOk: false, rungKeys: [], legacyRung: -1, alList: [], ed: { ymd: 0, hm: 420, id: 0 }, edAcc: 0, heldT: 0 };
   const cv = $('devCv'), cx2 = cv.getContext('2d');
   const now = () => performance.now();
-  const hasUnread = () => !!(sim.msg && !sim.msg.read);
+  const hasUnread = () => !!(last && (last.status === 'sent' || last.status === 'shown')) || !!(sim.msg && !sim.msg.read && (!last || sim.msg.id === last.id));
   const cfgv = (k, d) => sim.cfg && sim.cfg[k] != null ? sim.cfg[k] : d;
   function simGo(s, userOpened = false) {
     if (sim.scr === 'msg' && s !== 'msg' && sim.seen && sim.msg) sim.msg.read = true;   // viewed → read (tester only)
@@ -1840,24 +1697,17 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (c !== sim.padConn || k !== !!sim.padKb || ks !== sim.padKs) { sim.padConn = c; sim.padMode = 0; sim.padKb = k; sim.padKs = ks; sim.js = null; sim.dirty = true; }
     }
     tmrFromDev();
-    if (s === 'dice') { const [, n, a, b] = dev.screen.split(':').map(Number), d = simDice(); if (!d.until && (d.n !== n || d.a !== a || d.b !== b)) { d.n = n || 1; d.a = a || 1; d.b = b || 1; sim.dirty = true; } }
     if (s === 'heart') { const ph = +sim._b || 0; if (!sim.heart || sim.heart.phase !== ph) { sim.heart = { phase: ph, t0: now() }; sim.dirty = true; } }
     if (s === 'kb') { const kp = dev.screen.split(':'), [, l, sh, len, pr] = kp.map(Number); const k = sim.kb || (sim.kb = { title: '' }); Object.assign(k, { layer: l || 0, shift: sh || 0, len: len || 0, press: isNaN(pr) ? -1 : pr, text: null, title: kp.length > 5 ? kp.slice(5).join(':') : k.title }); sim.dirty = true; }
     if (s === 'set') { const d = +sim._b || 0; if (simSet().drag !== d && !tp.down) { sim.set.drag = d; sim.set.br = sim.set.vol = null; sim.dirty = true; } }
     { const parts = String(dev && dev.screen || '').split(':');
       if (s === 'stby' || s === 'wakeend') { const nx = s === 'stby' ? (parts[2] != null ? parts[2] + ':' + parts[3] : null) : parts[1] + ':' + parts[2]; if (nx !== sim.wkNext) { sim.wkNext = nx; sim.dirty = true; } }
-      if (s === 'coin') { const c = simCoin(), st = +parts[1] || 0, sd = +parts[2] || 0, fl = +parts[3] || 0;
-        if (st === 1 && c.state !== 1) { c.from = c.side; c.side = sd; c.spins = 6 + (c.from ^ sd); c.state = 1; c.t0 = now(); c.local = false; sim.dirty = true; }
-        if (st === 0 && (c.state !== 0 || c.side !== sd || c.flips !== fl) && !(c.state === 1 && now() - c.t0 < COIN_MS)) { c.state = 0; c.side = sd; c.flips = fl; sim.dirty = true; } }
-      if (s === 'wheeled') { const sc = +parts[1] || 0; const e = String(dev.wheel_items || '').split('\n').filter(Boolean); const w = simWheel(); if (sc !== sim.weScroll || e.join('|') !== w.e.join('|')) { sim.weScroll = sc; w.e = e; sim.dirty = true; } }
-      if (s === 'torch') { const lv = +parts[1] || 50; if (lv !== sim.torch) { sim.torch = lv; sim.dirty = true; } }
-      if (['car', 'sudoku', 'chk', 'wordle', 'lol'].includes(s) && dev.screen !== sim.gScreen) { sim.gScreen = dev.screen; sim.dirty = true; }   // games: drawn straight from the state string
-      if (s === 'maze') { const mz = { seed: +parts[1] >>> 0, n: +parts[2] || 7, level: +parts[3] || 1, state: +parts[4] || 0, time: +parts[5] || 0, holes: (parts[6] || '').split(',').filter(Boolean).map(h => h.split('.').map(Number)), falls: +parts[7] || 0, best: +parts[8] || 0 }; if (JSON.stringify(mz) !== JSON.stringify(sim.mz)) { if (!sim.mz || sim.mz.seed !== mz.seed) sim.mzT0 = now(); sim.mz = mz; sim.dirty = true; } }
-      if (s === 'wheel') { const w = simWheel(), st = +parts[1] || 0, ang = (+parts[2] || 0) * Math.PI / 1800, res = +parts[3], e = parts.slice(4).join(':').split('|').filter(Boolean);
-        if (e.join('|') !== w.e.join('|')) { w.e = e; sim.dirty = true; }
-        if (st === 1 && w.state !== 1) { w.state = 1; w.dur = 0; w.local = false; sim.dirty = true; }
-        if (st === 0 && (w.state === 1 || Math.abs(w.ang - ang) > .001 || w.res !== res)) { w.state = 0; w.ang = ang; w.res = res; w.resUntil = res >= 0 ? now() + 4000 : 0; sim.dirty = true; } } }
-    if (!['stby', 'home', 'apps', 'msg', 'alarm', 'alarms', 'aedit', 'pad', 'timer', 'tdone', 'dice', 'level', 'heart', 'set', 'wifi', 'kb', 'portal', 'bt', 'wakeend', 'games', 'wheel', 'coin', 'maze', 'torch', 'wheeled', 'car', 'sudoku', 'chk', 'wordle', 'lol'].includes(s)) return;
+      if (s === 'torch') { const lv = +parts[1] || 80; if (lv !== sim.torch) { sim.torch = lv; sim.dirty = true; } }
+      if (s === 'car' && dev.screen !== sim.gScreen) { sim.gScreen = dev.screen; sim.carBest = +parts[5] || 0; sim.dirty = true; }   // race: drawn straight from the state string
+      if (s === 'msg') { const id = parts[4] || '', ask = parts[5] === '1', ix = +parts[2] || 0, cnt = +parts[3] || 0; if (id !== sim.msgWant || ask !== sim.sgAsk || ix !== sim.sgIdx || cnt !== sim.sgN) { if (ix !== sim.sgIdx || id !== sim.msgWant) sim.sgInfoAt = now(); sim.msgWant = id; sim.sgAsk = ask; sim.sgIdx = ix; sim.sgN = cnt; sim.dirty = true; simSyncMsg(); } }
+      if (s === 'maze') { const nums = v => (v || '').split(',').filter(Boolean).map(h => h.split('.').map(Number)); const mz = { seed: +parts[1] >>> 0, n: +parts[2] || 6, level: +parts[3] || 1, state: +parts[4] || 0, time: +parts[5] || 0, holes: nums(parts[6]), falls: +parts[7] || 0, best: +parts[8] || 0, tp: nums(parts[9]), glue: nums(parts[10]) }; if (JSON.stringify(mz) !== JSON.stringify(sim.mz)) { if (!sim.mz || sim.mz.seed !== mz.seed) sim.mzT0 = now(); sim.mz = mz; sim.dirty = true; } }
+    }
+    if (!['stby', 'home', 'apps', 'msg', 'alarm', 'alarms', 'aedit', 'pad', 'timer', 'tdone', 'set', 'wifi', 'kb', 'portal', 'bt', 'wakeend', 'games', 'maze', 'torch', 'car'].includes(s)) return;
     if (s !== sim.scr) { sim.scr = s; sim.shownAt = now(); sim.vel = 0; if (s === 'msg') sim.scrollY = sc || 0; sim.dirty = true; }
     else if (s === 'msg' && sc != null && !tp.down && Math.abs(sim.vel) <= 8 && Math.abs(sc - sim.scrollY) > 1) { sim.scrollY = sc; sim.dirty = true; }
     if (pos !== sim.pos) { sim.pos = pos; sim.dirty = true; }
@@ -1865,24 +1715,29 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     kick();
   }
   async function simSyncMsg() {
-    const m = last && last.status !== 'cleared' ? last : null;
-    if (!m) {
+    const want = sim.live && sim.msgWant ? sim.msgWant : (last && last.status !== 'cleared' ? last.id : '');
+    if (!want) {
       if (sim.msg) { const was = sim.scr === 'msg'; sim.msg = null; sim.seen = false; if (was && !sim.live) simGo('stby'); sim.dirty = true; kick(); }
       return;
     }
-    if (sim.msg && sim.msg.id === m.id) { if (m.status === 'read' && !sim.msg.read) { sim.msg.read = true; sim.dirty = true; kick(); } return; }
-    if (sim.job === m.id) return;
-    sim.job = m.id;
+    if (sim.msg && sim.msg.id === want) { if (last && last.id === want && last.status === 'read' && !sim.msg.read) { sim.msg.read = true; sim.dirty = true; kick(); } return; }
+    if (sim.job === want) return;
+    sim.job = want;
     try {
+      let m = last && last.id === want ? last : sgItems.find(x => x.id === want);
+      if (!m) m = (await db.get('messages', `select=id,body,photo_path,photo_first,status&id=eq.${want}`))[0];
+      if (!m) return;
       const url = m.photo_path ? await fileURL('photos', m.photo_path) : null;
       const built = await buildContent(m.body || '', url, m.photo_first !== false);
-      if (!last || last.id !== m.id) return;
+      const now2 = sim.live && sim.msgWant ? sim.msgWant : (last && last.id);
+      if (now2 !== want) return;
       const wasMsg = sim.scr === 'msg';
       sim.msg = { id: m.id, read: m.status === 'read', ...built };
-      if (!sim.live) { if (m.status === 'sent' || m.status === 'shown') simGo('msg'); else if (wasMsg) simGo('msg', true); }
+      if (!sim.live && last && m.id === last.id) { if (m.status === 'sent' || m.status === 'shown') simGo('msg'); else if (wasMsg) simGo('msg', true); }
       sim.dirty = true; kick();
     } catch (e) { console.warn(e); } finally { sim.job = null; }
   }
+
   async function simCfg(force) {
     if (!force && Date.now() - sim.cfgAt < 6000) return;
     sim.cfgAt = Date.now();
@@ -1913,7 +1768,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
   function simDraw() {
     const X = cx2; X.globalCompositeOperation = 'source-over'; X.fillStyle = '#000'; X.fillRect(0, 0, DEV, DEV);
     if (!assetsOk) return;
-    if (sim.scr === 'msg') { if (sim.msg) X.drawImage(sim.msg.canvas, 0, T(sim.scrollY), DEV, DEV, 0, 0, DEV, DEV); }
+    if (sim.scr === 'msg') drawSg(X);
     else if (sim.scr === 'home') drawHome(X);
     else if (sim.scr === 'apps') drawApps(X);
     else if (sim.scr === 'alarm') drawAlarm(X);
@@ -1922,9 +1777,6 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     else if (sim.scr === 'pad') drawPad(X);
     else if (sim.scr === 'timer') drawTimer(X);
     else if (sim.scr === 'tdone') drawTdone(X);
-    else if (sim.scr === 'dice') drawDice(X);
-    else if (sim.scr === 'level') drawLevel(X);
-    else if (sim.scr === 'heart') drawHeart(X);
     else if (sim.scr === 'set') drawSettings(X);
     else if (sim.scr === 'wifi') drawWifi(X);
     else if (sim.scr === 'kb') drawKb(X);
@@ -1933,18 +1785,34 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     else if (sim.flashUntil > now()) drawBulb(X, sim.pos, sim.flashOn);
     else if (sim.scr === 'wakeend') drawWakeEnd(X);
     else if (sim.scr === 'games') drawGames(X);
-    else if (sim.scr === 'wheel') drawWheel(X);
-    else if (sim.scr === 'coin') drawCoin(X);
     else if (sim.scr === 'maze') drawMaze(X);
     else if (sim.scr === 'car') drawCar(X);
-    else if (sim.scr === 'sudoku') drawSudoku(X);
-    else if (sim.scr === 'chk') drawCheckers(X);
-    else if (sim.scr === 'wordle') drawWordle(X);
-    else if (sim.scr === 'lol') drawLol(X);
     else if (sim.scr === 'torch') drawTorch(X);
-    else if (sim.scr === 'wheeled') drawWheelEdit(X);
     else drawStandby(X, sim.pos, upcoming(1)[0] || null, hasUnread(), wakeActive() ? sim.wkNext : null);
     if (sim.scr !== 'msg' && backOfSim(sim.scr)) rrectS(X, 6, 233, 1.5, 22, 1.5, sim.scr === 'torch' ? 'rgb(40,40,40)' : 'rgb(72,72,72)');   // bar: back gesture
+  }
+  function drawSg(X) {                            // ściąga: jak renderMsg() na ESP
+    if (!sim.msg) {
+      const I = ic('chat'); if (I) drawIcon(X, 'chat', 233 - T(I.width / 2), 150, C.dim);
+      drawTextC(X, 'F_BODY', 233, 270, 'ściąga jest pusta', C.ink); drawTextC(X, 'F_SMALL', 233, 306, 'wiadomości i zdjęcia z telefonu', C.muted); drawTextC(X, 'F_SMALL', 233, 332, 'zostaną tu, aż je usuniesz', C.muted);
+      return;
+    }
+    X.drawImage(sim.msg.canvas, 0, T(sim.scrollY), DEV, DEV, 0, 0, DEV, DEV);
+    const n = sim.live ? (sim.sgN || 0) : sgItems.length, ix = sim.live ? (sim.sgIdx || 0) : 0, age = now() - (sim.sgInfoAt || 0);
+    if (n && age < 3000 && !sim.sgAsk) {
+      X.save(); X.globalAlpha = age < 2400 ? 1 : 1 - (age - 2400) / 600;
+      const it = sgItems.find(m => m.id === sim.msg.id), txt = `${ix + 1} / ${n}` + (it ? ' · ' + sgWhen(it.created_at).replace('today', 'dziś') : '');
+      rrectS(X, 233, 54, T(tw('F_SMALL', txt) / 2) + 17, 17, 17, 'rgb(24,24,26)'); drawTextC(X, 'F_SMALL', 233, 62, txt, C.ink);
+      if (n > 1 && n <= 24) for (let i = 0; i < n; i++) { const a = (90 - (i - (n - 1) / 2) * 6.5) * Math.PI / 180; disc(X, 233 + Math.cos(a) * 214, 233 + Math.sin(a) * 214, i === ix ? 5 : 3.2, i === ix ? C.ink : 'rgb(90,90,90)'); }
+      X.restore(); if (age > 2300) sim.dirty = true;
+    }
+    if (sim.sgAsk) {
+      X.fillStyle = 'rgba(0,0,0,.65)'; X.fillRect(0, 0, DEV, DEV);
+      rrectS(X, 233, 250, 164, 96, 30, 'rgb(22,22,24)'); drawTextC(X, 'F_BODY', 233, 214, 'usunąć ze ściągi?', C.ink);
+      disc(X, 169, 276, 34, 'rgb(46,18,16)'); ringW(X, 169, 276, 34, 2, C.red); const Tr = ic('trashs'); if (Tr) drawIcon(X, 'trashs', 169 - T(Tr.width / 2), 276 - T(Tr.height / 2), C.red);
+      disc(X, 297, 276, 34, 'rgb(30,30,32)'); ringW(X, 297, 276, 34, 2, C.line);
+      X.strokeStyle = C.ink; X.lineWidth = 3.2; X.lineCap = 'round'; X.beginPath(); X.moveTo(287, 266); X.lineTo(307, 286); X.moveTo(307, 266); X.lineTo(287, 286); X.stroke(); X.lineCap = 'butt';
+    }
   }
   function frame(t) {
     sim.raf = 0;
@@ -1957,7 +1825,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (sim.scr === 'stby' && n - sim.movedAt > 90000) { sim.pos = (sim.pos + 4) % 9; sim.movedAt = n; sim.dirty = true; }
       const idle = n - sim.lastAct, ms = cfgv('msg_show_min', 10), sl = cfgv('sleep_min', 1);
       if (sim.scr === 'msg' && ms > 0 && idle > ms * 60000) simGo('stby');
-      if (['home', 'apps', 'alarms', 'aedit', 'timer', 'dice', 'level', 'set', 'wifi', 'bt', 'games', 'wheel', 'coin', 'wakeend'].includes(sim.scr) && sl > 0 && idle > sl * 60000) simGo('stby');
+      if (['home', 'apps', 'alarms', 'aedit', 'timer', 'set', 'wifi', 'bt', 'games', 'wakeend'].includes(sim.scr) && sl > 0 && idle > sl * 60000) simGo('stby');
     }
     if (sim.flashUntil && n > sim.flashUntil) { sim.flashUntil = 0; sim.dirty = true; }
     if (sim.scr === 'heart') {
@@ -1966,10 +1834,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       if (!sim.live && ((h.phase === 0 && n - h.t0 > 15000) || (h.phase === 1 && n - h.t0 > 800))) simGo(sim.heartPrev || 'home');
       if (sim.live && h.phase === 1 && n - h.t0 > 800 && n < sim.hold) simGo(sim.heartPrev || 'home');
     }
-    if (sim.scr === 'dice') diceStep(n);
     if (sim.scr === 'maze' && sim.mz && !sim.mz.state) { const sec = T((n - (sim.mzT0 || n)) / 1000); if (sec !== sim.mzSec) { sim.mzSec = sec; sim.dirty = true; } }
-    if (sim.scr === 'coin') coinStep(n);
-    if (sim.scr === 'wheel') { const w = simWheel(); if (w.state === 1 || (w.resUntil && n < w.resUntil + 100)) sim.dirty = true; }
+    if (sim.scr === 'car' && sim.live) sim.dirty = true;
     if (sim.scr === 'bt' && !sim.live && sim.bt && sim.bt.until) { if (n > sim.bt.until) { sim.bt.until = 0; sim.bt.on = false; } sim.dirty = true; }
     { const tm = simTmr();
       if (!sim.live && tm.state === 1 && tmrLeft(tm) === 0) { tm.state = 0; simGo('tdone'); }
@@ -2016,13 +1882,9 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if ((sim.scr === 'alarms' || sim.scr === 'timer') && y < TAB_Y + 28 && Math.abs(x - 233) < TAB_HW + 6) { const t = x < 233 ? 'alarms' : 'timer'; if (t !== sim.scr) simGo(t); return; }
     if (sim.scr === 'timer') return timerTapSim(x, y);
     if (sim.scr === 'wakeend') { if ((x - 233) ** 2 + (y - 243) ** 2 < 142 ** 2) { sim.wk = false; simGo('home'); } else simGo('stby'); return; }
-    if (sim.scr === 'games') { GM_ICONS.forEach((n, i) => { const [cx, cy] = gmPos(i); if ((x - cx) ** 2 + (y - cy) ** 2 < (GM_R + 10) ** 2) { if (['car', 'sudoku', 'chk', 'wordle', 'lol'].includes(GM_SCR[i])) toast('This game runs on the ESP — turn on the live preview'); else simGo(GM_SCR[i]); } }); return; }
+    if (sim.scr === 'games') { GM_ICONS.forEach((n, i) => { const [cx, cy] = gmPos(i); if ((x - cx) ** 2 + (y - cy) ** 2 < (GM_R + 14) ** 2) { if (!sim.live) toast(i ? 'The race runs on the ESP — turn on the live preview' : 'Maze: tilt the ESP'); simGo(GM_SCR[i]); } }); return; }
     if (sim.scr === 'maze') { if (!sim.live) toast('Maze: tilt the ESP'); return; }
     if (sim.scr === 'torch') return torchTapSim(x, y);
-    if (sim.scr === 'wheeled') { if (!sim.live) toast('Change the fields in Settings → Wheel of fortune'); return; }
-    if (sim.scr === 'coin') { if (!sim.live) coinFlipSim(); return; }
-    if (sim.scr === 'wheel') return wheelTapSim(x, y);
-    if (sim.scr === 'dice') return diceTapSim(x, y);
     if (sim.scr === 'set') return setTapSim(x, y);
     if (sim.scr === 'wifi') return wifiTapSim(x, y);
     if (sim.scr === 'kb') return kbTapSim(x, y);
@@ -2045,12 +1907,11 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if (sim.scr === 'msg') { sim.seen = true; return; }                       // tapping a message doesn't turn anything off
     if (sim.scr === 'apps') {
       for (const [n, cx, cy, on, r] of appItems()) if (on && (x - cx) ** 2 + (y - cy) ** 2 < (r + 6) ** 2) {
-        if (n === 'chat' && sim.msg) simGo('msg', true);
+        if (n === 'chat') simGo('msg', true);
         if (n === 'alarm') simGo(simTmr().state ? 'timer' : 'alarms');
         if (n === 'pad') simGo('pad');
         if (n === 'dice') simGo('games');
         if (n === 'level') simGo(n);
-        if (n === 'torch') { sim.torch = 50; simGo('torch'); }
         if (n === 'gear') simGo('set');
         return;
       }
@@ -2108,7 +1969,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     const [x, y] = devXY(e);
     Object.assign(tp, { down: true, moved: false, held: false, x, y, lastX: x, lastY: y, t0: n, lastMove: n, dyAll: 0, edge: x < 34 && !!backOfSim(sim.scr) }); sim.scroll0 = sim.scrollY; sim.edAcc = 0;
     clearTimeout(sim.heldT);
-    if (sim.scr === 'heart' || sim.scr === 'wheel') sim.heldT = setTimeout(() => {   // hold 0.8 s: heart back / delete wheel field
+    if (sim.scr === 'heart' || sim.scr === 'msg') sim.heldT = setTimeout(() => {   // hold 0.8 s: heart back / cheat sheet: delete?
       if (!tp.down || tp.moved || tp.x < 34) return;
       tp.held = true; sendInput('hold', { x: Math.round(tp.x), y: Math.round(tp.y) });
       if (sim.scr === 'heart' && (!sim.heart || sim.heart.phase === 0)) heartSim(1);
@@ -2160,6 +2021,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
       const t = sdx < 0 ? 'timer' : 'alarms'; if (t !== sim.scr) { sendInput('tap', { x: t === 'timer' ? 233 + TAB_DX : 233 - TAB_DX, y: TAB_Y }); simGo(t); }
       sim.vel = 0; kick(); return;
     }
+    if (!tp.held && sim.scr === 'msg' && Math.abs(sdx) > 70 && Math.abs(sdx) > 1.4 * Math.abs(sdy)) { sim.vel = 0; sendInput('swipe', { dir: sdx < 0 ? 1 : -1 }); sim.sgInfoAt = now(); sim.dirty = true; kick(); return; }   // ściąga: starsza / nowsza
     if (tp.held) sim.vel = 0;
     else if (e.type === 'pointerup' && !tp.moved && n - tp.t0 < 500) { sim.vel = 0; sendInput('tap', { x: Math.round(tp.x), y: Math.round(tp.y) }); simTap(tp.x, tp.y); }
     else if (n - tp.lastMove > 90) sim.vel = 0;  // finger stopped before release
@@ -2182,8 +2044,14 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     if (sim.scr === 'msg') sim.seen = true;
     simGo(sim.scr === 'home' || sim.scr === 'stby' ? 'apps' : 'home');
   });
+  let botT = 0, botHeld = false;                  // dolny przycisk: przytrzymanie 0,6 s = latarka (jak na ESP)
+  $('hwBot').addEventListener('pointerdown', () => { botHeld = false; clearTimeout(botT); botT = setTimeout(() => { botHeld = true; sendInput('torch'); sim.lastAct = now();
+    if (sim.scr === 'torch') simGo(['home', 'apps', 'stby'].includes(sim.torchPrev) ? sim.torchPrev : 'stby'); else if (!['pad', 'alarm', 'tdone'].includes(sim.scr)) { sim.torchPrev = sim.scr; sim.torch = 80; simGo('torch'); } }, 600); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('hwBot').addEventListener(ev, () => clearTimeout(botT)));
   $('hwBot').addEventListener('click', () => {
+    if (botHeld) { botHeld = false; return; }
     sendInput('sleep'); sim.lastAct = now();
+    if (sim.scr === 'torch') return simGo(['home', 'apps', 'stby'].includes(sim.torchPrev) ? sim.torchPrev : 'stby');
     if (sim.scr === 'pad') return;                // in the controller: button A / left click
     if (sim.scr === 'alarm') return simGo('home');
     if (sim.scr === 'tdone') return simGo('timer');
@@ -2205,7 +2073,8 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
         ]);
         dev = st && st[0] || null; renderStatus();
         const m = msg && msg[0] || null;
-        if (!m || !last || m.id !== last.id || m.status !== last.status) { last = m; lastView = await viewOf(m); renderOnAir(); }
+        if (!m || !last || m.id !== last.id || m.status !== last.status) { last = m; lastView = await viewOf(m); renderOnAir(); loadSg(true); }
+        if (!$('v-msg').hidden) loadSg();
         if (previewOn()) { sim.dirty = true; simSyncMsg(); applyLive(); simCfg(); simWeather(); }
       } catch (e) { if (e.auth) logout(); else console.warn(e); }
       finally { polling = null; }
@@ -2248,22 +2117,7 @@ window.ESP_ASSETS = {"fonts":{"F_BODY":{"img":"data:image/png;base64,iVBORw0KGgo
     .then(() => toast(+$('battChk').value ? 'On battery: checking ' + $('battChk').selectedOptions[0].text : 'On battery: no checking (lowest power)')).catch(() => toast('Not saved — run 11_glos.sql in Supabase')));
   $('quietSw').addEventListener('change', () => db.patch('device_config', 'id=eq.esp', { quiet_night: $('quietSw').checked, updated_at: new Date().toISOString() })
     .then(() => toast($('quietSw').checked ? 'Quiet hours on' : 'Quiet hours off')).catch(() => toast('Not saved — run 11_glos.sql in Supabase')));
-  // ---- wheel of fortune: fields typed on the phone (the ESP receives the whole list) ----
-  let whLocal = null, whLocalUntil = 0;
-  const whItems = () => whLocal && Date.now() < whLocalUntil ? whLocal : String((dev && dev.wheel_items) || '').split('\n').filter(Boolean);
-  function renderWh() {
-    const items = whItems(), box = $('whList'), html = items.length ? items.map((t, i) => `<div class="row"><span style="width:10px;height:10px;border-radius:50%;flex:none;background:${whColor(i, items.length)}"></span><div class="lbl">${esc(t)}</div><button class="sbtn" type="button" data-wdel="${i}" aria-label="Delete field"><svg class="i"><use href="#i-trash"/></svg></button></div>`).join('') : '<div class="row"><div class="lbl" style="color:var(--muted)">No fields — add at least two</div></div>';
-    if (box.dataset.html === html) return; box.innerHTML = html; box.dataset.html = html;
-    box.querySelectorAll('[data-wdel]').forEach(b => b.onclick = () => whSend(items.filter((_, i) => i !== +b.dataset.wdel)));
-  }
-  async function whSend(items) {
-    whLocal = items; whLocalUntil = Date.now() + 8000; renderWh();
-    try { await req('/rest/v1/commands', { method: 'POST', body: { kind: 'wheel', payload: { items, t: Math.floor(Date.now() / 1000) } }, headers: { Prefer: 'return=minimal' } }); if (!isOnline()) toast('ESP offline — fields will arrive when it is back'); setTimeout(poll, 1500); }
-    catch (e) { whLocal = null; renderWh(); toast('Not sent — run 13_kolo.sql in Supabase'); }
-  }
-  const whAddNow = () => { const t = $('whNew').value.trim(); if (!t) return; const items = whItems(); if (items.length >= 12) return toast('12 fields at most'); $('whNew').value = ''; whSend(items.concat([t.slice(0, 40)])); };
-  $('whAdd').addEventListener('click', whAddNow);
-  $('whNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); whAddNow(); } });
+  function renderWh() {}                          // koło fortuny usunięte z ESP
   // ---- battery: chart of the last 48 h and drain per hour ----
   async function loadBatt() {
     try {
