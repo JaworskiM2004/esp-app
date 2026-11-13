@@ -31,6 +31,14 @@
   .legend { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; font-size:13px; color:var(--muted); max-width:360px; }
   .legend b { color:var(--ink); font-weight:500; white-space:nowrap; }
   .note { font-size:12px; color:#5c5c5c; text-align:center; max-width:340px; }
+  .live { display:flex; align-items:center; gap:8px; justify-content:center; font-size:13px; color:var(--muted); min-height:20px; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#444; flex:none; }
+  .dot.on { background:#e8e8e8; box-shadow:0 0 6px rgba(255,255,255,.5); }
+  form.login { display:flex; flex-direction:column; gap:8px; width:min(300px, 100%); }
+  form.login input { background:#0d0d0d; border:1px solid var(--line); border-radius:12px; color:var(--ink); padding:11px 14px; font:inherit; }
+  form.login button { background:var(--ink); color:#000; border:0; border-radius:12px; padding:11px 14px; font:inherit; font-weight:600; }
+  .err { color:#c9c9c9; font-size:12px; text-align:center; min-height:16px; }
+  label.follow { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -39,6 +47,7 @@
     <h1>ESP v2 — live preview</h1>
     <div class="sub" id="sub">Runs the same interface code as the device.</div>
   </header>
+  <div class="live" id="live"><span class="dot" id="dot"></span><span id="liveTxt">Connecting…</span></div>
   <div class="device">
     <canvas id="cv" width="466" height="466" aria-label="ESP screen"></canvas>
     <button class="hw top" id="top" type="button" aria-label="Top button: screen on/off"></button>
@@ -51,7 +60,14 @@
     <b>Bottom button</b><span>tap: apps / home · hold: flashlight</span>
     <b>Top button</b><span>screen on / off</span>
   </div>
-  <div class="note">Not connected to your ESP yet — battery and live state arrive with the network stage.</div>
+  <label class="follow"><input type="checkbox" id="follow" checked> Follow the screen shown on the ESP</label>
+  <form class="login" id="login" hidden>
+    <input type="email" id="em" placeholder="Email" autocomplete="username" required>
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password" required>
+    <button type="submit">Sign in to see your ESP</button>
+    <div class="err" id="err"></div>
+  </form>
+  <div class="note">The preview runs the ESP's own code. Battery and the current screen come from your ESP every few seconds.</div>
 </main>
 <script>
 (async () => {
@@ -76,13 +92,66 @@
   try { E.set_bright(+(localStorage.getItem('v2.brightv') ?? 150)); E.set_dnd(+(localStorage.getItem('v2.dnd') ?? 0)); } catch (e) {}
   let savedB = E.get_bright(), savedD = E.get_dnd();
 
+  // ---- połączenie z bazą: ta sama sesja co w głównej aplikacji (klucz esp.session), a gdy jej brak — logowanie tutaj
+  const SB_URL = 'https://trzqhiimdoqexfunqpan.supabase.co', SB_KEY = 'sb_publishable_R4qFJidKhqKurJNgbZe3eg_ynaFWLnM';
+  const $ = id => document.getElementById(id);
+  let sess = null; try { sess = JSON.parse(localStorage.getItem('esp.session')); } catch (e) {}
+  const setSess = j => { sess = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600) };
+                         try { localStorage.setItem('esp.session', JSON.stringify(sess)); } catch (e) {} };
+  async function authPost(grant, body) {
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=${grant}`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.error_description || j.msg || 'Sign-in failed'), { status: r.status });
+    return j;
+  }
+  async function token() {
+    if (!sess) throw Object.assign(new Error('auth'), { auth: true });
+    if (Date.now() / 1000 > sess.expires_at - 60) {
+      try { setSess(await authPost('refresh_token', { refresh_token: sess.refresh_token })); }
+      catch (e) { if (e.status === 400 || e.status === 401) { sess = null; throw Object.assign(new Error('auth'), { auth: true }); } throw e; }
+    }
+    return sess.access_token;
+  }
+  $('login').addEventListener('submit', async ev => {
+    ev.preventDefault(); $('err').textContent = '';
+    try { setSess(await authPost('password', { email: $('em').value, password: $('pw').value })); $('login').hidden = true; $('pw').value = ''; poll(); }
+    catch (e) { $('err').textContent = e.message; }
+  });
+  // stan ESP: co 3 s; bateria idzie do podglądu, ekran — jeśli włączone „podążaj”
+  const SCREENS = { 'v2:face': 0, 'v2:apps': 1, 'v2:quick': 2, 'v2:torch': 3, 'v2:app': 4 };
+  let dev = null, lastDevScreen = '', localUntil = 0;
+  async function poll() {
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/device_state?id=eq.esp&select=screen,battery,charging,online_at,fw_version,wifi_rssi,wifi_ssid`,
+                            { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + await token() } });
+      if (r.status === 401) { sess = null; throw Object.assign(new Error('auth'), { auth: true }); }
+      dev = (await r.json())[0] || null;
+      const age = dev ? (Date.now() - Date.parse(dev.online_at)) / 1000 : 1e9, online = age < 90 && String(dev.fw_version || '').startsWith('v2');
+      $('dot').className = 'dot' + (online ? ' on' : '');
+      $('liveTxt').textContent = !dev ? 'No data from the ESP' : online
+        ? `ESP online · ${dev.battery ?? '–'}%${dev.charging ? ' charging' : ''} · ${dev.wifi_ssid || 'Wi-Fi'} ${dev.wifi_rssi} dBm · ${dev.fw_version}`
+        : `ESP offline · last seen ${age < 3600 ? Math.round(age / 60) + ' min' : Math.round(age / 3600) + ' h'} ago`;
+      dev.online = online;
+      const scr = String(dev.screen || '');
+      if (online && $('follow').checked && scr !== lastDevScreen && performance.now() > localUntil) {
+        const [a, b, item] = scr.split(':'), id = SCREENS[a + ':' + b];
+        if (id !== undefined) { E.jump(id, +item || 0); lastInput = performance.now(); if (!screenOn) { screenOn = true; } }
+      }
+      lastDevScreen = scr;
+    } catch (e) {
+      if (e.auth) { $('login').hidden = false; $('liveTxt').textContent = 'Sign in to connect to your ESP'; $('dot').className = 'dot'; }
+      else $('liveTxt').textContent = 'No connection';
+    }
+  }
+  poll(); setInterval(() => { if (!document.hidden && sess) poll(); }, 3000);
+
   // dotyk: współrzędne w pikselach ekranu ESP
   const touch = { on: false, x: 233, y: 233 };
   const pos = ev => { const r = cv.getBoundingClientRect(); return [Math.round((ev.clientX - r.left) * 466 / r.width), Math.round((ev.clientY - r.top) * 466 / r.height)]; };
   let screenOn = true, lastInput = performance.now();
   const wake = () => { lastInput = performance.now(); if (!screenOn) { screenOn = true; return true; } return false; };
   let swallow = false;                                          // pierwszy dotyk zgaszonego ekranu tylko budzi (jak na ESP)
-  cv.addEventListener('pointerdown', ev => { cv.setPointerCapture(ev.pointerId); swallow = wake(); if (swallow) return; [touch.x, touch.y] = pos(ev); touch.on = true; });
+  cv.addEventListener('pointerdown', ev => { localUntil = performance.now() + 5000; cv.setPointerCapture(ev.pointerId); swallow = wake(); if (swallow) return; [touch.x, touch.y] = pos(ev); touch.on = true; });
   cv.addEventListener('pointermove', ev => { if (!touch.on) return; [touch.x, touch.y] = pos(ev); lastInput = performance.now(); });
   const up = () => { touch.on = false; swallow = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -112,7 +181,7 @@
     if (screenOn) {
       const d = new Date();
       const b = E.frame(now | 0, touch.on ? 1 : 0, touch.x, touch.y, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds(),
-                        d.getDate(), d.getMonth() + 1, d.getDay(), -1, 0);
+                        d.getDate(), d.getMonth() + 1, d.getDay(), dev && dev.online && dev.battery != null ? dev.battery : -1, dev && dev.online && dev.charging ? 1 : 0);
       if (b >= 0) { draw(); setBright(b); }
       if (E.power_req()) { screenOn = false; draw(true); document.getElementById('sub').textContent = 'The ESP would switch off now. Press the top button.'; }
       const nb = E.get_bright(), nd = E.get_dnd();
