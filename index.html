@@ -122,16 +122,17 @@
 
   // ---------------------------------------------------------------- stan ESP (co 2 s) i podążanie za nim
   // ESP pisze w device_state.screen: „v2:ekran[:pozycja];b=jasność;d=cisza;v=głośność”.
-  const SCREENS = { face: 0, apps: 1, quick: 2, torch: 3, app: 4 };
+  const SCREENS = { face: 0, apps: 1, quick: 2, torch: 3, app: 4, lamp: 5 };
   let control = true, dev = null, lastDev = '', localUntil = 0;
   $('ctl').addEventListener('click', () => { control = !control; $('ctl').classList.toggle('on', control); $('ctl').textContent = control ? 'Controls the ESP' : 'Preview only'; });
   async function poll() {
     try {
-      const rows = await rest('/rest/v1/device_state?id=eq.esp&select=screen,battery,charging,online_at,fw_version,wifi_rssi,wifi_ssid');
+      const rows = await rest('/rest/v1/device_state?id=eq.esp&select=screen,battery,charging,online_at,fw_version,wifi_rssi,wifi_ssid,light_on,lamp_info');
       dev = rows && rows[0];
       const age = dev ? (Date.now() - Date.parse(dev.online_at)) / 1000 : 1e9;
       const online = !!dev && age < 90 && String(dev.fw_version || '').startsWith('v2');
       if (dev) dev.online = online;
+      E.set_lamp(online && dev.light_on != null ? (dev.light_on ? 1 : 0) : -1);   // lampa: stan z ESP
       $('dot').className = 'dot' + (online ? ' on' : '');
       $('liveTxt').textContent = !dev ? 'No data from the ESP' : online
         ? `ESP online · ${dev.battery ?? '–'}%${dev.charging ? ' charging' : ''} · Wi-Fi ${dev.wifi_rssi} dBm`
@@ -205,6 +206,8 @@
       if (b >= 0) draw(b);
       if (E.power_req() && control && on) { /* wyłączenie z telefonu celowo nie istnieje — tylko na urządzeniu */ }
       syncOut();
+      const lr = E.lamp_req();                                  // stuknięcie w lampę w podglądzie → prawdziwa lampa
+      if (lr !== -99 && lr !== 3 && control && on) send('light', lr === 2 ? { ring: true } : { toggle: true });
     }
     requestAnimationFrame(loop);
   }
