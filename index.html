@@ -122,7 +122,7 @@
 
   // ---------------------------------------------------------------- stan ESP (co 2 s) i podążanie za nim
   // ESP pisze w device_state.screen: „v2:ekran[:pozycja];b=jasność;d=cisza;v=głośność”.
-  const SCREENS = { face: 0, apps: 1, quick: 2, torch: 3, app: 4, lamp: 5, games: 6, maze: 7, race: 8, pad: 9 };
+  const SCREENS = { face: 0, apps: 1, quick: 2, torch: 3, app: 4, lamp: 5, games: 6, maze: 7, race: 8, pad: 9, orbit: 10, tower: 11, safe: 12 };
   let control = true, dev = null, lastDev = '', localUntil = 0;
   $('ctl').addEventListener('click', () => { control = !control; $('ctl').classList.toggle('on', control); $('ctl').textContent = control ? 'Controls the ESP' : 'Preview only'; });
   async function poll() {
