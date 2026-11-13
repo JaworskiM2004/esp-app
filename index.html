@@ -180,7 +180,7 @@
   cv.addEventListener('pointermove', ev => { if (!touch.on) return; [touch.x, touch.y] = pos(ev); lastInput = performance.now(); local(); });
   const up = () => { touch.on = false; swallow = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-  $('top').addEventListener('click', () => { local(); if (control && dev && dev.online) send('input', { key: 'top' }); if (screenOn) { screenOn = false; blank(); } else wake(); });
+  $('top').addEventListener('click', () => { local(); if (control && dev && dev.online) send('input', { key: 'top' }); if (screenOn) { if (!E.try_pause()) { screenOn = false; blank(); } } else wake(); });
   const bot = $('bot'); let botT = 0, botLong = false, botWake = false;
   bot.addEventListener('pointerdown', ev => { local(); bot.setPointerCapture(ev.pointerId); botWake = wake(); botLong = false;
     botT = setTimeout(() => { botLong = true; E.btn_long(); lastInput = performance.now(); }, 600); });
