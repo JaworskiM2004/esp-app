@@ -122,7 +122,7 @@
 
   // ---------------------------------------------------------------- stan ESP (co 2 s) i podążanie za nim
   // ESP pisze w device_state.screen: „v2:ekran[:pozycja];b=jasność;d=cisza;v=głośność”.
-  const SCREENS = { face: 0, apps: 1, quick: 2, torch: 3, app: 4, lamp: 5, games: 6, maze: 7, race: 8 };
+  const SCREENS = { face: 0, apps: 1, quick: 2, torch: 3, app: 4, lamp: 5, games: 6, maze: 7, race: 8, pad: 9 };
   let control = true, dev = null, lastDev = '', localUntil = 0;
   $('ctl').addEventListener('click', () => { control = !control; $('ctl').classList.toggle('on', control); $('ctl').textContent = control ? 'Controls the ESP' : 'Preview only'; });
   async function poll() {
@@ -171,7 +171,8 @@
 
   // ---------------------------------------------------------------- dotyk i przyciski
   const touch = { on: false, x: 233, y: 233 };
-  const pos = ev => { const r = cv.getBoundingClientRect(); return [Math.round((ev.clientX - r.left) * 466 / r.width), Math.round((ev.clientY - r.top) * 466 / r.height)]; };
+  const pos = ev => { const r = cv.getBoundingClientRect(), x = Math.round((ev.clientX - r.left) * 466 / r.width), y = Math.round((ev.clientY - r.top) * 466 / r.height);
+                    return flipShown ? [465 - x, 465 - y] : [x, y]; };   // obraz obrócony (touchpad) — dotyk też
   let screenOn = true, lastInput = performance.now(), swallow = false;
   function wake() { lastInput = performance.now(); if (!screenOn) { screenOn = true; return true; } return false; }
   const local = () => { localUntil = performance.now() + 5000; };
@@ -187,7 +188,20 @@
   bot.addEventListener('pointercancel', () => clearTimeout(botT));
 
   // ---------------------------------------------------------------- rysowanie
-  let shownB = -1;
+  let shownB = -1, flipShown = false;
+  // dźwięki gier: te same próbki co na ESP (syntezator w esp.wasm), granie przez WebAudio — dopiero po pierwszym dotknięciu (zasada przeglądarek)
+  let AC = null;
+  const audioOn = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} };
+  cv.addEventListener('pointerdown', audioOn);
+  function playSounds() {
+    for (let code; (code = E.sfx_take()) >= 0;) {
+      if (!AC || E.get_dnd()) continue;
+      const n = E.sfx_render(code, E.get_vol()), src = new Int16Array(E.memory.buffer, E.sfx_buf(), n);
+      const buf = AC.createBuffer(1, n, 16000), ch = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) ch[i] = src[i] / 32768;
+      const s = AC.createBufferSource(); s.buffer = buf; s.connect(AC.destination); s.start();
+    }
+  }
   function blank() { X.fillStyle = '#000'; X.fillRect(0, 0, 466, 466); cv.style.filter = ''; shownB = -1; }
   function draw(b) {
     if (!fb.length) fb = new Uint16Array(E.memory.buffer, E.fb_ptr(), 466 * 466);
@@ -204,6 +218,8 @@
       const b = E.frame(now | 0, touch.on ? 1 : 0, touch.x, touch.y, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds(),
                         d.getDate(), d.getMonth() + 1, d.getDay(), on && dev.battery != null ? dev.battery : -1, on && dev.charging ? 1 : 0);
       if (b >= 0) draw(b);
+      const fl = !!E.flipped(); if (fl !== flipShown) { flipShown = fl; cv.style.transform = fl ? 'rotate(180deg)' : ''; }
+      playSounds();
       if (E.power_req() && control && on) { /* wyłączenie z telefonu celowo nie istnieje — tylko na urządzeniu */ }
       syncOut();
       const lr = E.lamp_req();                                  // stuknięcie w lampę w podglądzie → prawdziwa lampa
