@@ -73,7 +73,7 @@
   E._initialize();
   let fb = new Uint16Array(E.memory.buffer, E.fb_ptr(), 466 * 466);
   // ustawienia jak w urządzeniu (tu: pamięć przeglądarki)
-  try { E.set_bright(+(localStorage.getItem('v2.bright') ?? 1)); E.set_dnd(+(localStorage.getItem('v2.dnd') ?? 0)); } catch (e) {}
+  try { E.set_bright(+(localStorage.getItem('v2.brightv') ?? 150)); E.set_dnd(+(localStorage.getItem('v2.dnd') ?? 0)); } catch (e) {}
   let savedB = E.get_bright(), savedD = E.get_dnd();
 
   // dotyk: współrzędne w pikselach ekranu ESP
@@ -116,7 +116,7 @@
       if (b >= 0) { draw(); setBright(b); }
       if (E.power_req()) { screenOn = false; draw(true); document.getElementById('sub').textContent = 'The ESP would switch off now. Press the top button.'; }
       const nb = E.get_bright(), nd = E.get_dnd();
-      if (nb !== savedB || nd !== savedD) { savedB = nb; savedD = nd; try { localStorage.setItem('v2.bright', nb); localStorage.setItem('v2.dnd', nd); } catch (e) {} }
+      if (nb !== savedB || nd !== savedD) { savedB = nb; savedD = nd; try { localStorage.setItem('v2.brightv', nb); localStorage.setItem('v2.dnd', nd); } catch (e) {} }
     }
     requestAnimationFrame(loop);
   }
